@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { styled } from "nativewind";
+import { styled } from "../packages/nativewind";
 import api from "../src/api/client";
 
 const SafeAreaView = styled(RNSafeAreaView);
