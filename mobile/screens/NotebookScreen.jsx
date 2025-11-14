@@ -24,6 +24,28 @@ const FILTERS = [
   { type: "yearly", label: "Yearly" },
 ];
 
+const FILTER_PALETTE = {
+  all: { background: "#FFF8E1", text: "#B7791F", border: "#F6AD55" },
+  daily: { background: "#E8F5E9", text: "#2F855A", border: "#68D391" },
+  weekly: { background: "#E3F2FD", text: "#1D4ED8", border: "#60A5FA" },
+  monthly: { background: "#F3E8FF", text: "#6B21A8", border: "#C084FC" },
+  yearly: { background: "#FEE2E2", text: "#B91C1C", border: "#FCA5A5" },
+};
+
+const NOTE_TYPE_COLORS = {
+  daily: { card: "#E3F2FD", text: "#1E3A8A", accent: "#3B82F6" },
+  weekly: { card: "#F3E8FF", text: "#5B21B6", accent: "#8B5CF6" },
+  monthly: { card: "#FFF3E0", text: "#9C4221", accent: "#F59E0B" },
+  yearly: { card: "#E0F2F1", text: "#00695C", accent: "#26A69A" },
+  all: { card: "#F1F5F9", text: "#1F2937", accent: "#0288D1" },
+};
+
+const SUMMARY_COLORS = {
+  completed: { background: "#E6FFFA", text: "#0F766E" },
+  pending: { background: "#FEF3C7", text: "#B45309" },
+  total: { background: "#E0E7FF", text: "#3730A3" },
+};
+
 const INITIAL_NOTES = [
   {
     id: "1",
@@ -157,21 +179,21 @@ export default function NotebookScreen({ navigation }) {
             <View className="flex-row space-x-2">
               {FILTERS.map((filter) => {
                 const isActive = filter.type === activeFilter;
+                const palette = FILTER_PALETTE[filter.type];
                 return (
                   <TouchableOpacity
                     key={filter.type}
                     onPress={() => setActiveFilter(filter.type)}
-                    className={`px-4 py-2 rounded-full border ${
-                      isActive
-                        ? "bg-[#0288D1] border-[#0288D1]"
-                        : "bg-white border-gray-300"
-                    }`}
+                    className="px-4 py-2 rounded-full border"
+                    style={{
+                      backgroundColor: isActive ? palette.background : "#FFFFFF",
+                      borderColor: isActive ? palette.border : "#E2E8F0",
+                    }}
                     activeOpacity={0.8}
                   >
                     <Text
-                      className={`text-sm font-medium ${
-                        isActive ? "text-white" : "text-gray-700"
-                      }`}
+                      className="text-sm font-medium"
+                      style={{ color: isActive ? palette.text : "#4B5563" }}
                     >
                       {filter.label}
                     </Text>
@@ -202,18 +224,44 @@ export default function NotebookScreen({ navigation }) {
               filteredNotes.map((note) => (
                 <View
                   key={note.id}
-                  className="mb-3 rounded-2xl bg-white p-4 border border-gray-200 shadow-sm"
+                  className="relative mb-3 overflow-hidden rounded-2xl border shadow-sm p-4"
+                  style={{
+                    backgroundColor:
+                      (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).card,
+                    borderColor: `${(NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).accent}33`,
+                  }}
                 >
-                  <Text className="text-base text-gray-800">{note.text}</Text>
+                  <View
+                    className="absolute left-0 top-0 bottom-0 w-1"
+                    style={{
+                      backgroundColor: (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all)
+                        .accent,
+                    }}
+                  />
+                  <Text
+                    className="text-base font-medium"
+                    style={{ color: (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).text }}
+                  >
+                    {note.text}
+                  </Text>
                   <View className="mt-3 flex-row items-center justify-between">
-                    <Text className="text-xs text-gray-500">{note.date}</Text>
+                    <Text
+                      className="text-xs"
+                      style={{
+                        color: `${(NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).text}B3`,
+                      }}
+                    >
+                      {note.date}
+                    </Text>
                     <TouchableOpacity
                       onPress={() => toggleNoteComplete(note.id)}
-                      className={`h-6 w-6 items-center justify-center rounded border-2 ${
-                        note.completed
-                          ? "bg-[#0288D1] border-[#0288D1]"
-                          : "border-[#0288D1]"
-                      }`}
+                      className="h-6 w-6 items-center justify-center rounded border-2"
+                      style={{
+                        backgroundColor: note.completed
+                          ? (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).accent
+                          : "transparent",
+                        borderColor: (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).accent,
+                      }}
                       activeOpacity={0.8}
                     >
                       {note.completed && (
@@ -235,18 +283,50 @@ export default function NotebookScreen({ navigation }) {
         <MaterialIcons name="add" size={30} color="#FFFFFF" />
       </TouchableOpacity>
 
-      <View className="absolute left-0 right-0 bottom-0 bg-white border-t border-gray-200">
+      <View className="absolute left-0 right-0 bottom-0 border-t border-gray-200 bg-white">
         <View className="flex-row">
-          <View className="flex-1 items-center border-r border-gray-200 py-3">
-            <Text className="text-sm font-medium text-green-600">Completed</Text>
+          <View
+            className="flex-1 items-center py-3"
+            style={{
+              backgroundColor: SUMMARY_COLORS.completed.background,
+              borderRightColor: "#FFFFFF",
+              borderRightWidth: 1,
+            }}
+          >
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: SUMMARY_COLORS.completed.text }}
+            >
+              Completed
+            </Text>
             <Text className="text-lg font-semibold text-gray-800">{completedCount}</Text>
           </View>
-          <View className="flex-1 items-center border-r border-gray-200 py-3">
-            <Text className="text-sm font-medium text-red-600">Pending</Text>
+          <View
+            className="flex-1 items-center py-3"
+            style={{
+              backgroundColor: SUMMARY_COLORS.pending.background,
+              borderRightColor: "#FFFFFF",
+              borderRightWidth: 1,
+            }}
+          >
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: SUMMARY_COLORS.pending.text }}
+            >
+              Pending
+            </Text>
             <Text className="text-lg font-semibold text-gray-800">{pendingCount}</Text>
           </View>
-          <View className="flex-1 items-center py-3">
-            <Text className="text-sm font-medium text-gray-500">Total</Text>
+          <View
+            className="flex-1 items-center py-3"
+            style={{ backgroundColor: SUMMARY_COLORS.total.background }}
+          >
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: SUMMARY_COLORS.total.text }}
+            >
+              Total
+            </Text>
             <Text className="text-lg font-semibold text-gray-800">{totalCount}</Text>
           </View>
         </View>
