@@ -11,33 +11,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import api from "../src/api/client";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase";
 
 export default function LoginScreen({ navigation }) {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert("Missing information", "Please enter your username and password.");
+    if (!email || !password) {
+      Alert.alert("Missing information", "Please enter your email and password.");
       return;
     }
 
     try {
       setLoading(true);
-      const res = await api.post("/auth/login/", {
-        username: username.trim(),
-        password,
-      });
-      await AsyncStorage.setItem("access", res.data.access);
-      await AsyncStorage.setItem("refresh", res.data.refresh);
+      await signInWithEmailAndPassword(auth, email, password);
       navigation.replace("Home");
     } catch (err) {
-      console.log(err.response?.data);
-      const message =
-        err.response?.data?.detail || "Login failed. Please check your credentials.";
+      console.log(err);
+      const message = "Login failed. Please check your credentials.";
       Alert.alert("Login failed", message);
     } finally {
       setLoading(false);
@@ -61,12 +55,12 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Sign in</Text>
           <TextInput
-            placeholder="Username"
+            placeholder="Email"
             placeholderTextColor="#8A8FA6"
             autoCapitalize="none"
             style={styles.input}
-            value={username}
-            onChangeText={setUsername}
+            value={email}
+            onChangeText={setEmail}
           />
           <TextInput
             placeholder="Password"

@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import api from "../src/api/client";
+import { addDoc, collection } from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -53,12 +54,18 @@ export default function AddTransactionScreen({ navigation, route }) {
     }
 
     try {
-      await api.post("/transactions/", {
-        amount,
+      const user = auth.currentUser;
+      if (!user) {
+        Alert.alert("Not authenticated", "You must be logged in to add a transaction.");
+        return;
+      }
+      await addDoc(collection(db, "transactions"), {
+        amount: Number(amount),
         type,
         category,
         note: notes,
         date: parseDateTimeToISO(date, time),
+        userId: user.uid,
       });
       navigation.goBack();
     } catch (error) {

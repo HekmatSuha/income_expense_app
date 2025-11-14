@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
-import api from "../src/api/client";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import Navigation from "../components/Navigation";
 
 const SafeAreaView = styled(RNSafeAreaView);
@@ -86,28 +87,53 @@ export default function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      const res = await api.get("/transactions/");
-      setTransactions(Array.isArray(res.data) ? res.data : []);
-    } catch (error) {
-      console.error("Failed to fetch transactions", error);
+  const loadData = useCallback(() => {
+    const user = auth.currentUser;
+    if (!user) {
+      setTransactions([]);
+      return;
     }
+
+    const q = query(collection(db, "transactions"), where("userId", "==", user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const transactionsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setTransactions(transactionsData);
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
-    loadData();
+    const unsubscribe = loadData();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [loadData]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadData);
+    const unsubscribe = navigation.addListener("focus", () => {
+      const unsub = loadData();
+      return () => {
+        if (unsub) {
+          unsub();
+        }
+      };
+    });
     return unsubscribe;
   }, [navigation, loadData]);
 
-  const onRefresh = useCallback(async () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    await loadData();
+    const unsubscribe = loadData();
     setRefreshing(false);
+    if (unsubscribe) {
+      unsubscribe();
+    }
   }, [loadData]);
 
   const { incomeTotal, expenseTotal } = useMemo(() => {

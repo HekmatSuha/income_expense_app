@@ -11,11 +11,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import api from "../src/api/client";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase";
 
 export default function RegisterScreen({ navigation }) {
   const [form, setForm] = useState({
-    username: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -27,8 +27,8 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const handleRegister = async () => {
-    if (!form.username || !form.password) {
-      Alert.alert("Missing information", "Username and password are required.");
+    if (!form.email || !form.password) {
+      Alert.alert("Missing information", "Email and password are required.");
       return;
     }
     if (form.password.length < 8) {
@@ -42,11 +42,7 @@ export default function RegisterScreen({ navigation }) {
 
     try {
       setLoading(true);
-      await api.post("/auth/register/", {
-        username: form.username.trim(),
-        email: form.email.trim() || undefined,
-        password: form.password,
-      });
+      await createUserWithEmailAndPassword(auth, form.email, form.password);
       Alert.alert("Welcome!", "Account created successfully. Please log in.", [
         {
           text: "Go to Login",
@@ -54,14 +50,7 @@ export default function RegisterScreen({ navigation }) {
         },
       ]);
     } catch (err) {
-      const errorData = err.response?.data;
-      const message = Array.isArray(errorData)
-        ? errorData.join("\n")
-        : typeof errorData === "object"
-        ? Object.values(errorData)
-            .flat()
-            .join("\n") || "Unable to register. Please try again."
-        : "Unable to register. Please try again.";
+      const message = "Unable to register. Please try again.";
       Alert.alert("Registration failed", message);
     } finally {
       setLoading(false);
@@ -85,15 +74,7 @@ export default function RegisterScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Sign up</Text>
           <TextInput
-            placeholder="Username"
-            placeholderTextColor="#8A8FA6"
-            autoCapitalize="none"
-            style={styles.input}
-            value={form.username}
-            onChangeText={(value) => updateField("username", value)}
-          />
-          <TextInput
-            placeholder="Email (optional)"
+            placeholder="Email"
             placeholderTextColor="#8A8FA6"
             keyboardType="email-address"
             autoCapitalize="none"
