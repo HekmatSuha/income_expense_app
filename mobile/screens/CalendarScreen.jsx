@@ -143,6 +143,9 @@ export default function CalendarScreen({ navigation }) {
     if (tab === "home") {
       navigation.navigate("Home");
     }
+    if (tab === "bankAccounts") {
+      navigation.navigate("BankAccounts");
+    }
     if (tab === "notebook") {
       navigation.navigate("Notebook");
     }
