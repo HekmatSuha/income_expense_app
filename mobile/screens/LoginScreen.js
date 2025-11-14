@@ -1,16 +1,34 @@
 import React, { useState } from "react";
-import { View, TextInput, Button, Alert } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../src/api/client";
 
 export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert("Missing information", "Please enter your username and password.");
+      return;
+    }
+
     try {
+      setLoading(true);
       const res = await api.post("/auth/login/", {
-        username,
+        username: username.trim(),
         password,
       });
       await AsyncStorage.setItem("access", res.data.access);
@@ -18,26 +36,142 @@ export default function LoginScreen({ navigation }) {
       navigation.replace("Home");
     } catch (err) {
       console.log(err.response?.data);
-      Alert.alert("Login failed", "Check username/password");
+      const message =
+        err.response?.data?.detail || "Login failed. Please check your credentials.";
+      Alert.alert("Login failed", message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={{ padding: 16 }}>
-      <TextInput
-        placeholder="Username"
-        value={username}
-        onChangeText={setUsername}
-        style={{ borderWidth: 1, marginBottom: 8, padding: 8 }}
-      />
-      <TextInput
-        placeholder="Password"
-        value={password}
-        secureTextEntry
-        onChangeText={setPassword}
-        style={{ borderWidth: 1, marginBottom: 8, padding: 8 }}
-      />
-      <Button title="Login" onPress={handleLogin} />
-    </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.select({ ios: "padding", android: undefined })}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>
+            Log in to continue monitoring your spending and savings goals.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Sign in</Text>
+          <TextInput
+            placeholder="Username"
+            placeholderTextColor="#8A8FA6"
+            autoCapitalize="none"
+            style={styles.input}
+            value={username}
+            onChangeText={setUsername}
+          />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#8A8FA6"
+            value={password}
+            secureTextEntry
+            style={styles.input}
+            onChangeText={setPassword}
+          />
+
+          <TouchableOpacity
+            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Signing in..." : "Log in"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Register")}
+            style={styles.secondaryAction}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryActionText}>Need an account? Sign up</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0F172A",
+  },
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: "space-between",
+  },
+  header: {
+    marginTop: 24,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#F8FAFC",
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#CBD5F5",
+    lineHeight: 22,
+  },
+  card: {
+    backgroundColor: "#1E293B",
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 12,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#F8FAFC",
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: "#0F172A",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: "#F8FAFC",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  primaryButton: {
+    backgroundColor: "#38BDF8",
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  primaryButtonText: {
+    color: "#0F172A",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  secondaryAction: {
+    marginTop: 18,
+    alignItems: "center",
+  },
+  secondaryActionText: {
+    color: "#7DD3FC",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+});

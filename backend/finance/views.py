@@ -1,6 +1,7 @@
-from rest_framework import viewsets, permissions
+from django.contrib.auth.models import User
+from rest_framework import generics, permissions, viewsets
 from .models import Transaction
-from .serializers import TransactionSerializer
+from .serializers import TransactionSerializer, UserRegistrationSerializer
 
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
@@ -11,3 +12,9 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class UserRegistrationView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [permissions.AllowAny]
