@@ -218,7 +218,7 @@ export default function CalendarScreen({ navigation }) {
 
               <View className="flex-row flex-wrap mt-2">
                 {calendarDays.map((day) => {
-                  const hasEvents = monthEvents.some((event) => {
+                  const dayEvents = monthEvents.filter((event) => {
                     const eventDate = new Date(event.date);
                     return (
                       eventDate.getFullYear() === day.date.getFullYear() &&
@@ -227,23 +227,70 @@ export default function CalendarScreen({ navigation }) {
                     );
                   });
 
+                  const hasIncome = dayEvents.some((event) => event.type === "Income");
+                  const hasExpense = dayEvents.some((event) => event.type === "Expense");
+                  const isToday = (() => {
+                    const today = new Date();
+                    return (
+                      today.getFullYear() === day.date.getFullYear() &&
+                      today.getMonth() === day.date.getMonth() &&
+                      today.getDate() === day.date.getDate()
+                    );
+                  })();
+
+                  let dayBackgroundClass = day.isCurrentMonth
+                    ? "bg-white"
+                    : "bg-[#E2E8F0]";
+                  let borderClass = day.isCurrentMonth
+                    ? "border-[#0288D1]/20"
+                    : "border-[#94A3B8]/40";
+                  let textClass = day.isCurrentMonth
+                    ? "text-[#1F2937]"
+                    : "text-[#94A3B8]";
+
+                  if (hasIncome && hasExpense) {
+                    dayBackgroundClass = "bg-[#FFF3E0]";
+                    textClass = "text-[#9C4221]";
+                    borderClass = "border-[#FB923C]/40";
+                  } else if (hasIncome) {
+                    dayBackgroundClass = "bg-[#E0F7FA]";
+                    textClass = "text-[#006064]";
+                    borderClass = "border-[#26A69A]/40";
+                  } else if (hasExpense) {
+                    dayBackgroundClass = "bg-[#FDE8E8]";
+                    textClass = "text-[#9B2C2C]";
+                    borderClass = "border-[#F87171]/40";
+                  }
+
+                  if (isToday) {
+                    dayBackgroundClass = "bg-[#FFF9C4]";
+                    textClass = "text-[#7A5700] font-semibold";
+                    borderClass = "border-[#FBBF24]/60";
+                  }
+
+                  const badgeClass = hasIncome && hasExpense
+                    ? "bg-[#FB923C]/80"
+                    : hasIncome
+                    ? "bg-[#26A69A]/80"
+                    : "bg-[#F87171]/80";
+
                   return (
                     <View
                       key={day.key}
                       style={{ width: "14.28%" }}
-                      className={`h-16 p-1 items-center justify-center border border-[#0288D1]/10 ${
-                        day.isCurrentMonth ? "bg-white" : "bg-gray-100"
-                      }`}
+                      className={`h-16 p-1 items-center justify-center border ${
+                        dayBackgroundClass
+                      } ${borderClass}`}
                     >
-                      <Text
-                        className={`text-sm ${
-                          day.isCurrentMonth ? "text-gray-800" : "text-gray-400"
-                        }`}
-                      >
-                        {day.label}
-                      </Text>
-                      {hasEvents && (
-                        <View className="mt-1 h-2 w-2 rounded-full bg-[#0288D1]" />
+                      <Text className={`text-sm ${textClass}`}>{day.label}</Text>
+                      {dayEvents.length > 0 && (
+                        <View
+                          className={`mt-1 px-1.5 py-0.5 rounded-full ${badgeClass}`}
+                        >
+                          <Text className="text-[10px] text-white font-semibold">
+                            {dayEvents.length} evt
+                          </Text>
+                        </View>
                       )}
                     </View>
                   );
@@ -264,29 +311,42 @@ export default function CalendarScreen({ navigation }) {
             ) : (
               monthEvents.map((event) => {
                 const eventDate = new Date(event.date);
+                const isIncome = event.type === "Income";
+                const accentColor = isIncome ? "#26A69A" : "#EF5350";
+                const backgroundColor = isIncome ? "#E0F7FA" : "#FDE8E8";
                 return (
                   <View
                     key={event.id}
-                    className="mt-4 rounded-xl bg-white p-4 border border-gray-200 shadow-sm"
+                    className="relative mt-4 overflow-hidden rounded-2xl border shadow-sm"
+                    style={{
+                      borderColor: `${accentColor}33`,
+                      backgroundColor,
+                    }}
                   >
+                    <View
+                      className="absolute left-0 top-0 bottom-0 w-1.5"
+                      style={{ backgroundColor: accentColor }}
+                    />
                     <View className="flex-row items-center justify-between">
                       <View>
-                        <Text className="text-base font-semibold text-gray-800">
+                        <Text
+                          className="text-base font-semibold"
+                          style={{ color: isIncome ? "#00695C" : "#9B2C2C" }}
+                        >
                           {event.title}
                         </Text>
-                        <Text className="text-xs text-gray-500 mt-1">
+                        <Text className="text-xs text-gray-600 mt-1">
                           {formatDateLabel(eventDate)}
                         </Text>
                       </View>
                       <View className="items-end">
                         <Text
-                          className={`text-sm font-semibold ${
-                            event.type === "Income" ? "text-green-600" : "text-red-600"
-                          }`}
+                          className="text-sm font-semibold"
+                          style={{ color: accentColor }}
                         >
                           {event.type === "Income" ? "+" : "-"}${formatCurrency(event.amount)}
                         </Text>
-                        <Text className="text-xs text-gray-500 mt-1">{event.type}</Text>
+                        <Text className="text-xs text-gray-600 mt-1">{event.type}</Text>
                       </View>
                     </View>
                   </View>
