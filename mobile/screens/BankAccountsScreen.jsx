@@ -81,11 +81,11 @@ export default function BankAccountsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F2F5F9]">
-      <View className="bg-[#0288D1] px-4 py-5">
+    <SafeAreaView className="flex-1 bg-brand-surface">
+      <View className="bg-brand-sky px-4 py-5">
         <View className="flex-row items-center justify-between">
           <Text className="text-white text-xl font-semibold">Bank Accounts</Text>
-          <View className="bg-white/15 rounded-full p-3">
+          <View className="bg-white-15 rounded-full p-3">
             <MaterialIcons name="account-balance" size={24} color="#FFFFFF" />
           </View>
         </View>
@@ -105,62 +105,62 @@ export default function BankAccountsScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View className="px-4 pt-4 space-y-6">
-          <View className="bg-white rounded-2xl shadow-sm border border-[#0288D1]/15 p-4">
-            <Text className="text-lg font-semibold text-[#0F172A] mb-4">
+          <View className="bg-white rounded-2xl shadow-sm border border-brand-sky-15 p-4">
+            <Text className="text-lg font-semibold text-brand-slate-900 mb-4">
               Create a new bank account
             </Text>
             <View className="space-y-4">
               <View>
-                <Text className="text-sm font-medium text-[#475569] mb-1">Account name</Text>
+                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Account name</Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}
                   placeholder="e.g. Vacation Savings"
-                  className="bg-[#F8FAFC] rounded-xl px-4 py-3 text-base"
+                  className="bg-brand-input rounded-xl px-4 py-3 text-base"
                 />
               </View>
               <View>
-                <Text className="text-sm font-medium text-[#475569] mb-1">Account type</Text>
+                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Account type</Text>
                 <TextInput
                   value={type}
                   onChangeText={setType}
                   placeholder="Savings, Checking, ..."
-                  className="bg-[#F8FAFC] rounded-xl px-4 py-3 text-base"
+                  className="bg-brand-input rounded-xl px-4 py-3 text-base"
                 />
               </View>
               <View>
-                <Text className="text-sm font-medium text-[#475569] mb-1">Starting balance</Text>
+                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Starting balance</Text>
                 <TextInput
                   value={balance}
                   onChangeText={setBalance}
                   placeholder="0.00"
                   keyboardType="decimal-pad"
-                  className="bg-[#F8FAFC] rounded-xl px-4 py-3 text-base"
+                  className="bg-brand-input rounded-xl px-4 py-3 text-base"
                 />
               </View>
               {error ? (
-                <Text className="text-sm text-[#DC2626]">{error}</Text>
+                <Text className="text-sm text-brand-error">{error}</Text>
               ) : null}
               <TouchableOpacity
                 onPress={handleAddAccount}
                 activeOpacity={0.85}
-                className="bg-[#0288D1] rounded-2xl py-3 items-center justify-center shadow-sm"
+                className="bg-brand-sky rounded-2xl py-3 items-center justify-center shadow-sm"
               >
                 <Text className="text-white text-base font-semibold">Add account</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View className="bg-white rounded-2xl shadow-sm border border-[#0288D1]/10">
+          <View className="bg-white rounded-2xl shadow-sm border border-brand-sky-10">
             <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
-              <Text className="text-base font-semibold text-[#0F172A]">
+              <Text className="text-base font-semibold text-brand-slate-900">
                 Your bank accounts
               </Text>
               <MaterialIcons name="account-balance-wallet" size={22} color="#0288D1" />
             </View>
             {accounts.length === 0 ? (
               <View className="px-4 py-6 items-center">
-                <Text className="text-sm text-[#475569] text-center">
+                <Text className="text-sm text-brand-slate-600 text-center">
                   No accounts yet. Add your first bank account above.
                 </Text>
               </View>
@@ -174,13 +174,13 @@ export default function BankAccountsScreen({ navigation }) {
                 >
                   <View className="flex-row items-center justify-between">
                     <View>
-                      <Text className="text-base font-semibold text-[#0F172A]">
+                      <Text className="text-base font-semibold text-brand-slate-900">
                         {account.name}
                       </Text>
-                      <Text className="text-xs text-[#64748B] mt-1">{account.type}</Text>
+                      <Text className="text-xs text-brand-slate-500 mt-1">{account.type}</Text>
                     </View>
                     <View className="items-end">
-                      <Text className="text-lg font-bold text-[#0288D1]">
+                      <Text className="text-lg font-bold text-brand-sky">
                         ${formatCurrency(account.balance)}
                       </Text>
                     </View>

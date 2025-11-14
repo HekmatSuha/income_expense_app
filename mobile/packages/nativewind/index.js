@@ -81,7 +81,17 @@ const COLORS = {
   "gray-200": "#E2E8F0",
   "gray-300": "#CBD5F5",
   "gray-400": "#94A3B8",
-  "gray-700": "#334155"
+  "gray-700": "#334155",
+  "white-15": "rgba(255, 255, 255, 0.15)",
+  "brand-surface": "#F2F5F9",
+  "brand-input": "#F8FAFC",
+  "brand-sky": "#0288D1",
+  "brand-sky-10": "rgba(2, 136, 209, 0.1)",
+  "brand-sky-15": "rgba(2, 136, 209, 0.15)",
+  "brand-slate-900": "#0F172A",
+  "brand-slate-600": "#475569",
+  "brand-slate-500": "#64748B",
+  "brand-error": "#DC2626"
 };
 
 const FLEX_MAP = {
