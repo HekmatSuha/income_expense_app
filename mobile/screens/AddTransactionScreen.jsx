@@ -1,12 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, TextInput, Button } from "react-native";
 import api from "../src/api/client";
 
-export default function AddTransactionScreen({ navigation }) {
+export default function AddTransactionScreen({ navigation, route }) {
   const [amount, setAmount] = useState("");
-  const [type, setType] = useState("EXPENSE");
+  const [type, setType] = useState(route?.params?.type || "EXPENSE");
   const [category, setCategory] = useState("Food");
   const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (route?.params?.type) {
+      setType(route.params.type);
+    }
+  }, [route?.params?.type]);
 
   const handleSave = async () => {
     await api.post("/transactions/", {
