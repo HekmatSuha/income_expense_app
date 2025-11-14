@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   SafeAreaView as RNSafeAreaView,
   ScrollView as RNScrollView,
@@ -9,50 +9,13 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
 import Navigation from "../components/Navigation";
+import api from "../src/api/client";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
 const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
-
-const EVENTS = [
-  {
-    id: "1",
-    title: "Grocery Shopping",
-    type: "Expense",
-    date: "2025-11-03",
-    amount: 120.5,
-  },
-  {
-    id: "2",
-    title: "Salary",
-    type: "Income",
-    date: "2025-11-08",
-    amount: 3800,
-  },
-  {
-    id: "3",
-    title: "Coffee with Alex",
-    type: "Expense",
-    date: "2025-11-14",
-    amount: 15.25,
-  },
-  {
-    id: "4",
-    title: "Car Insurance",
-    type: "Expense",
-    date: "2025-11-21",
-    amount: 240,
-  },
-  {
-    id: "5",
-    title: "Freelance Project",
-    type: "Income",
-    date: "2025-11-26",
-    amount: 640,
-  },
-];
 
 function formatCurrency(value) {
   return (Number(value) || 0).toLocaleString(undefined, {
@@ -117,7 +80,47 @@ function getCalendarDays(currentDate) {
 }
 
 export default function CalendarScreen({ navigation }) {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1));
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [transactions, setTransactions] = useState([]);
+
+  const loadTransactions = useCallback(async () => {
+    try {
+      const res = await api.get("/transactions/");
+      setTransactions(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error("Failed to fetch transactions", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", loadTransactions);
+    return unsubscribe;
+  }, [navigation, loadTransactions]);
+
+  const events = useMemo(() => {
+    return transactions
+      .map((transaction) => {
+        const eventDate = transaction?.date ? new Date(transaction.date) : null;
+        if (!eventDate || Number.isNaN(eventDate.getTime())) {
+          return null;
+        }
+
+        const type = String(transaction.type || "").toUpperCase();
+
+        return {
+          id: String(transaction.id ?? `${transaction.type}-${transaction.date}`),
+          title: transaction.category || type || "Transaction",
+          type,
+          date: eventDate,
+          amount: Number(transaction.amount) || 0,
+        };
+      })
+      .filter(Boolean);
+  }, [transactions]);
 
   const calendarDays = useMemo(
     () => getCalendarDays(currentDate),
@@ -125,16 +128,37 @@ export default function CalendarScreen({ navigation }) {
   );
 
   const monthEvents = useMemo(() => {
-    return EVENTS.filter((event) => {
-      const eventDate = new Date(event.date);
-      return (
-        eventDate.getFullYear() === currentDate.getFullYear() &&
-        eventDate.getMonth() === currentDate.getMonth()
+    return events
+      .filter((event) => {
+        const eventDate = event.date instanceof Date ? event.date : new Date(event.date);
+        return (
+          eventDate.getFullYear() === currentDate.getFullYear() &&
+          eventDate.getMonth() === currentDate.getMonth()
+        );
+      })
+      .sort(
+        (a, b) =>
+          (a.date instanceof Date ? a.date : new Date(a.date)).getTime() -
+          (b.date instanceof Date ? b.date : new Date(b.date)).getTime()
       );
-    }).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-  }, [currentDate]);
+  }, [currentDate, events]);
+
+  const getTypeLabel = useCallback((type) => {
+    if (!type) {
+      return "";
+    }
+    const normalized = String(type).toUpperCase();
+    if (normalized === "INCOME") {
+      return "Income";
+    }
+    if (normalized === "EXPENSE") {
+      return "Expense";
+    }
+    if (normalized === "TRANSFER") {
+      return "Transfer";
+    }
+    return normalized.charAt(0) + normalized.slice(1).toLowerCase();
+  }, []);
 
   const handleTabChange = (tab) => {
     if (tab === "calendar") {
@@ -222,7 +246,8 @@ export default function CalendarScreen({ navigation }) {
               <View className="flex-row flex-wrap mt-2">
                 {calendarDays.map((day) => {
                   const dayEvents = monthEvents.filter((event) => {
-                    const eventDate = new Date(event.date);
+                    const eventDate =
+                      event.date instanceof Date ? event.date : new Date(event.date);
                     return (
                       eventDate.getFullYear() === day.date.getFullYear() &&
                       eventDate.getMonth() === day.date.getMonth() &&
@@ -230,8 +255,16 @@ export default function CalendarScreen({ navigation }) {
                     );
                   });
 
-                  const hasIncome = dayEvents.some((event) => event.type === "Income");
-                  const hasExpense = dayEvents.some((event) => event.type === "Expense");
+                  const hasIncome = dayEvents.some(
+                    (event) => String(event.type || "").toUpperCase() === "INCOME"
+                  );
+                  const hasExpense = dayEvents.some(
+                    (event) => String(event.type || "").toUpperCase() === "EXPENSE"
+                  );
+                  const hasOther = dayEvents.some((event) => {
+                    const normalized = String(event.type || "").toUpperCase();
+                    return normalized && normalized !== "INCOME" && normalized !== "EXPENSE";
+                  });
                   const isToday = (() => {
                     const today = new Date();
                     return (
@@ -275,7 +308,11 @@ export default function CalendarScreen({ navigation }) {
                     ? "bg-[#FB923C]/80"
                     : hasIncome
                     ? "bg-[#26A69A]/80"
-                    : "bg-[#F87171]/80";
+                    : hasExpense
+                    ? "bg-[#F87171]/80"
+                    : hasOther
+                    ? "bg-[#17A2B8]/80"
+                    : "bg-[#94A3B8]/60";
 
                   return (
                     <View
@@ -313,10 +350,21 @@ export default function CalendarScreen({ navigation }) {
               </View>
             ) : (
               monthEvents.map((event) => {
-                const eventDate = new Date(event.date);
-                const isIncome = event.type === "Income";
-                const accentColor = isIncome ? "#26A69A" : "#EF5350";
-                const backgroundColor = isIncome ? "#E0F7FA" : "#FDE8E8";
+                const eventDate =
+                  event.date instanceof Date ? event.date : new Date(event.date);
+                const normalizedType = String(event.type || "").toUpperCase();
+                const isIncome = normalizedType === "INCOME";
+                const isExpense = normalizedType === "EXPENSE";
+                const accentColor = isIncome
+                  ? "#26A69A"
+                  : isExpense
+                  ? "#EF5350"
+                  : "#17A2B8";
+                const backgroundColor = isIncome
+                  ? "#E0F7FA"
+                  : isExpense
+                  ? "#FDE8E8"
+                  : "#E0F2FE";
                 return (
                   <View
                     key={event.id}
@@ -334,7 +382,13 @@ export default function CalendarScreen({ navigation }) {
                       <View>
                         <Text
                           className="text-base font-semibold"
-                          style={{ color: isIncome ? "#00695C" : "#9B2C2C" }}
+                          style={{
+                            color: isIncome
+                              ? "#00695C"
+                              : isExpense
+                              ? "#9B2C2C"
+                              : "#0F4C75",
+                          }}
                         >
                           {event.title}
                         </Text>
@@ -347,9 +401,11 @@ export default function CalendarScreen({ navigation }) {
                           className="text-sm font-semibold"
                           style={{ color: accentColor }}
                         >
-                          {event.type === "Income" ? "+" : "-"}${formatCurrency(event.amount)}
+                          {isIncome ? "+" : isExpense ? "-" : ""}${formatCurrency(event.amount)}
                         </Text>
-                        <Text className="text-xs text-gray-600 mt-1">{event.type}</Text>
+                        <Text className="text-xs text-gray-600 mt-1">
+                          {getTypeLabel(event.type)}
+                        </Text>
                       </View>
                     </View>
                   </View>
