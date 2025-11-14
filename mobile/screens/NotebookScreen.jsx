@@ -126,6 +126,9 @@ export default function NotebookScreen({ navigation }) {
     if (tab === "calendar") {
       navigation.navigate("Calendar");
     }
+    if (tab === "bankAccounts") {
+      navigation.navigate("BankAccounts");
+    }
   };
 
   const toggleNoteComplete = (id) => {

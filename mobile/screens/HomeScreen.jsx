@@ -144,6 +144,9 @@ export default function HomeScreen({ navigation }) {
       if (tab === "calendar") {
         navigation.navigate("Calendar");
       }
+      if (tab === "bankAccounts") {
+        navigation.navigate("BankAccounts");
+      }
       if (tab === "notebook") {
         navigation.navigate("Notebook");
       }
