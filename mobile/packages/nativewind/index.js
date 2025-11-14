@@ -469,4 +469,10 @@ function styled(Component) {
   });
 }
 
-module.exports = { styled };
+// Support both CommonJS `require("nativewind").styled` and ES module style
+// `import { styled } from "nativewind"` consumption. Metro's interoperability
+// can otherwise expose only the default export which would make
+// `_nativewind.styled` undefined at runtime.
+module.exports = styled;
+module.exports.styled = styled;
+module.exports.default = styled;
