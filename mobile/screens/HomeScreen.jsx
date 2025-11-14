@@ -75,6 +75,8 @@ const getAmountClass = (type) => {
       return "text-income";
     case "EXPENSE":
       return "text-expense";
+    case "TRANSFER":
+      return "text-transfer";
     default:
       return "text-transactions";
   }
