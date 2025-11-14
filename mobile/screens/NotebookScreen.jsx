@@ -1,19 +1,24 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   SafeAreaView as RNSafeAreaView,
   ScrollView as RNScrollView,
   View as RNView,
   Text as RNText,
+  TextInput as RNTextInput,
   TouchableOpacity as RNTouchableOpacity,
+  RefreshControl,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
+import api from "../src/api/client";
 import Navigation from "../components/Navigation";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
 const View = styled(RNView);
 const Text = styled(RNText);
+const TextInput = styled(RNTextInput);
 const TouchableOpacity = styled(RNTouchableOpacity);
 
 const FILTERS = [
@@ -46,29 +51,73 @@ const SUMMARY_COLORS = {
   total: { background: "#E0E7FF", text: "#3730A3" },
 };
 
-const INITIAL_NOTES = [
-  {
-    id: "1",
-    text: "Today I should go to shopping",
-    date: "Fri, 14 Nov 2025",
-    completed: false,
-    type: "monthly",
-  },
-  {
-    id: "2",
-    text: "Prepare budget report",
-    date: "Tue, 18 Nov 2025",
-    completed: true,
-    type: "weekly",
-  },
-  {
-    id: "3",
-    text: "Plan year-end savings goals",
-    date: "Sun, 30 Nov 2025",
-    completed: false,
-    type: "yearly",
-  },
-];
+function formatDateInput(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isValidDateInput(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const [year, month, day] = value.split("-").map((part) => Number(part));
+  const parsed = new Date(year, month - 1, day);
+  return (
+    parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day
+  );
+}
+
+function formatNoteDate(dateString) {
+  if (!isValidDateInput(dateString)) {
+    return dateString;
+  }
+  const [year, month, day] = dateString.split("-").map((part) => Number(part));
+  const date = new Date(year, month - 1, day);
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${weekdays[date.getDay()]}, ${String(day).padStart(2, "0")} ${months[date.getMonth()]} ${year}`;
+}
+
+function sortNotesList(noteList) {
+  return [...noteList].sort((a, b) => {
+    const timeA = new Date(a.date).getTime();
+    const timeB = new Date(b.date).getTime();
+
+    const isTimeAValid = !Number.isNaN(timeA);
+    const isTimeBValid = !Number.isNaN(timeB);
+
+    if (isTimeAValid && isTimeBValid && timeA !== timeB) {
+      return timeB - timeA;
+    }
+
+    if (isTimeAValid && !isTimeBValid) {
+      return -1;
+    }
+
+    if (!isTimeAValid && isTimeBValid) {
+      return 1;
+    }
+
+    return String(b.id).localeCompare(String(a.id));
+  });
+}
 
 function getMonthName(index) {
   return [
@@ -96,14 +145,27 @@ function formatMonthRange(date) {
 
 export default function NotebookScreen({ navigation }) {
   const [activeFilter, setActiveFilter] = useState("monthly");
-  const [notes, setNotes] = useState(INITIAL_NOTES);
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1));
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [newNoteDate, setNewNoteDate] = useState(() => formatDateInput(new Date()));
+  const [newNoteFrequency, setNewNoteFrequency] = useState("monthly");
+  const [createError, setCreateError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [currentDate, setCurrentDate] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
 
   const filteredNotes = useMemo(() => {
     if (activeFilter === "all") {
       return notes;
     }
-    return notes.filter((note) => note.type === activeFilter);
+    return notes.filter((note) => note.frequency === activeFilter);
   }, [activeFilter, notes]);
 
   const { completedCount, pendingCount, totalCount } = useMemo(() => {
@@ -115,6 +177,122 @@ export default function NotebookScreen({ navigation }) {
       totalCount: filteredNotes.length,
     };
   }, [filteredNotes]);
+
+  const loadNotes = useCallback(
+    async ({ showLoader = true } = {}) => {
+      if (showLoader) {
+        setLoading(true);
+      }
+      setFetchError("");
+      setActionError("");
+      try {
+        const response = await api.get("/notes/");
+        const data = Array.isArray(response.data) ? response.data : [];
+        setNotes(sortNotesList(data));
+      } catch (error) {
+        console.error("Failed to fetch notes", error);
+        setFetchError("Unable to load notes. Pull to refresh or try again.");
+      } finally {
+        if (showLoader) {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNotes();
+    }, [loadNotes])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadNotes({ showLoader: false });
+    setRefreshing(false);
+  }, [loadNotes]);
+
+  const resetNoteForm = useCallback(() => {
+    setNewNoteText("");
+    setNewNoteDate(formatDateInput(new Date()));
+    setNewNoteFrequency("monthly");
+  }, []);
+
+  const handleToggleCreateForm = useCallback(() => {
+    setShowCreateForm((prev) => {
+      if (prev && creating) {
+        return prev;
+      }
+      const next = !prev;
+      if (!next) {
+        resetNoteForm();
+        setCreateError("");
+      } else {
+        setCreateError("");
+      }
+      return next;
+    });
+  }, [creating, resetNoteForm]);
+
+  const handleCancelCreate = useCallback(() => {
+    if (creating) {
+      return;
+    }
+    resetNoteForm();
+    setShowCreateForm(false);
+    setCreateError("");
+  }, [creating, resetNoteForm]);
+
+  const handleCreateNote = useCallback(async () => {
+    const trimmedText = newNoteText.trim();
+
+    if (!trimmedText) {
+      setCreateError("Please add a note before saving.");
+      return;
+    }
+
+    if (!isValidDateInput(newNoteDate)) {
+      setCreateError("Enter a valid date in YYYY-MM-DD format.");
+      return;
+    }
+
+    setCreating(true);
+    setCreateError("");
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticNote = {
+      id: tempId,
+      text: trimmedText,
+      date: newNoteDate,
+      frequency: newNoteFrequency,
+      completed: false,
+    };
+
+    setNotes((prev) => sortNotesList([optimisticNote, ...prev]));
+
+    try {
+      const response = await api.post("/notes/", {
+        text: trimmedText,
+        date: newNoteDate,
+        frequency: newNoteFrequency,
+      });
+
+      setNotes((prev) =>
+        sortNotesList(
+          prev.map((note) => (note.id === tempId ? response.data : note))
+        )
+      );
+      resetNoteForm();
+      setShowCreateForm(false);
+    } catch (error) {
+      console.error("Failed to create note", error);
+      setCreateError("Unable to create note. Please try again.");
+      setNotes((prev) => prev.filter((note) => note.id !== tempId));
+    } finally {
+      setCreating(false);
+    }
+  }, [newNoteDate, newNoteFrequency, newNoteText, resetNoteForm]);
 
   const handleTabChange = (tab) => {
     if (tab === "notebook") {
@@ -131,13 +309,41 @@ export default function NotebookScreen({ navigation }) {
     }
   };
 
-  const toggleNoteComplete = (id) => {
-    setNotes((prevNotes) =>
-      prevNotes.map((note) =>
-        note.id === id ? { ...note, completed: !note.completed } : note
-      )
-    );
-  };
+  const toggleNoteComplete = useCallback(
+    async (id) => {
+      setActionError("");
+      const existingNote = notes.find((note) => note.id === id);
+      if (!existingNote) {
+        return;
+      }
+
+      const optimisticNote = {
+        ...existingNote,
+        completed: !existingNote.completed,
+      };
+
+      setNotes((prev) =>
+        sortNotesList(prev.map((note) => (note.id === id ? optimisticNote : note)))
+      );
+
+      try {
+        const response = await api.patch(`/notes/${id}/`, {
+          completed: optimisticNote.completed,
+        });
+
+        setNotes((prev) =>
+          sortNotesList(prev.map((note) => (note.id === id ? response.data : note)))
+        );
+      } catch (error) {
+        console.error("Failed to toggle note", error);
+        setActionError("Unable to update note. Please try again.");
+        setNotes((prev) =>
+          sortNotesList(prev.map((note) => (note.id === id ? existingNote : note)))
+        );
+      }
+    },
+    [notes]
+  );
 
   const goToPreviousMonth = () => {
     setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -172,6 +378,14 @@ export default function NotebookScreen({ navigation }) {
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#0288D1"
+            colors={["#0288D1"]}
+          />
+        }
       >
         <View className="px-4 pt-4">
           <ScrollView
@@ -218,72 +432,177 @@ export default function NotebookScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {showCreateForm ? (
+            <View className="mt-4 rounded-2xl border border-[#0288D133] bg-white p-4 shadow-sm">
+              <View className="flex-row items-center justify-between">
+                <Text className="text-base font-semibold text-[#1F2937]">Create a note</Text>
+                <TouchableOpacity
+                  onPress={handleCancelCreate}
+                  activeOpacity={0.7}
+                  disabled={creating}
+                  className="p-1"
+                  style={{ opacity: creating ? 0.6 : 1 }}
+                >
+                  <MaterialIcons name="close" size={20} color="#4B5563" />
+                </TouchableOpacity>
+              </View>
+              <View className="mt-4 space-y-3">
+                <View>
+                  <Text className="text-xs font-medium text-gray-500 mb-1">Note</Text>
+                  <TextInput
+                    value={newNoteText}
+                    onChangeText={setNewNoteText}
+                    placeholder="What do you need to remember?"
+                    multiline
+                    className="rounded-xl border border-[#E2E8F0] bg-white px-3 py-2 text-sm"
+                    style={{ minHeight: 80, textAlignVertical: "top" }}
+                    editable={!creating}
+                  />
+                </View>
+                <View>
+                  <Text className="text-xs font-medium text-gray-500 mb-1">Date (YYYY-MM-DD)</Text>
+                  <TextInput
+                    value={newNoteDate}
+                    onChangeText={setNewNoteDate}
+                    placeholder="YYYY-MM-DD"
+                    keyboardType="numbers-and-punctuation"
+                    className="rounded-xl border border-[#E2E8F0] bg-white px-3 py-2 text-sm"
+                    editable={!creating}
+                  />
+                </View>
+                <View>
+                  <Text className="text-xs font-medium text-gray-500 mb-2">Frequency</Text>
+                  <View className="flex-row flex-wrap">
+                    {FILTERS.filter((filter) => filter.type !== "all").map((filter) => {
+                      const isSelected = filter.type === newNoteFrequency;
+                      const palette = NOTE_TYPE_COLORS[filter.type] || NOTE_TYPE_COLORS.all;
+                      return (
+                        <TouchableOpacity
+                          key={filter.type}
+                          onPress={() => setNewNoteFrequency(filter.type)}
+                          className="mr-2 mb-2 px-3 py-1.5 rounded-full border"
+                          activeOpacity={0.8}
+                          disabled={creating}
+                          style={{
+                            backgroundColor: isSelected ? palette.card : "#F8FAFC",
+                            borderColor: isSelected ? palette.accent : "#E2E8F0",
+                            opacity: creating ? 0.7 : 1,
+                          }}
+                        >
+                          <Text
+                            className="text-xs font-medium"
+                            style={{ color: isSelected ? palette.text : "#475569" }}
+                          >
+                            {filter.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+                {createError ? (
+                  <Text className="text-xs text-red-500">{createError}</Text>
+                ) : null}
+                <View className="mt-1 flex-row justify-end">
+                  <TouchableOpacity
+                    onPress={handleCancelCreate}
+                    activeOpacity={0.7}
+                    disabled={creating}
+                    className="mr-3 px-4 py-2 rounded-full border border-[#CBD5F5]"
+                    style={{ opacity: creating ? 0.7 : 1 }}
+                  >
+                    <Text className="text-sm font-medium text-[#475569]">Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleCreateNote}
+                    activeOpacity={0.85}
+                    disabled={creating}
+                    className="px-4 py-2 rounded-full bg-[#0288D1]"
+                    style={{ opacity: creating ? 0.7 : 1 }}
+                  >
+                    <Text className="text-sm font-semibold text-white">
+                      {creating ? "Saving..." : "Save note"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {fetchError ? (
+            <View className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+              <Text className="text-sm font-medium text-red-700">{fetchError}</Text>
+            </View>
+          ) : null}
+
           <View className="mt-4">
-            {filteredNotes.length === 0 ? (
+            {loading ? (
+              <View className="items-center justify-center py-10">
+                <Text className="text-gray-500">Loading notes...</Text>
+              </View>
+            ) : filteredNotes.length === 0 ? (
               <View className="items-center justify-center py-10">
                 <Text className="text-gray-500">No notes yet</Text>
               </View>
             ) : (
-              filteredNotes.map((note) => (
-                <View
-                  key={note.id}
-                  className="relative mb-3 overflow-hidden rounded-2xl border shadow-sm p-4"
-                  style={{
-                    backgroundColor:
-                      (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).card,
-                    borderColor: `${(NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).accent}33`,
-                  }}
-                >
+              filteredNotes.map((note) => {
+                const palette = NOTE_TYPE_COLORS[note.frequency] || NOTE_TYPE_COLORS.all;
+                return (
                   <View
-                    className="absolute left-0 top-0 bottom-0 w-1"
+                    key={note.id}
+                    className="relative mb-3 overflow-hidden rounded-2xl border shadow-sm p-4"
                     style={{
-                      backgroundColor: (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all)
-                        .accent,
+                      backgroundColor: palette.card,
+                      borderColor: `${palette.accent}33`,
                     }}
-                  />
-                  <Text
-                    className="text-base font-medium"
-                    style={{ color: (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).text }}
                   >
-                    {note.text}
-                  </Text>
-                  <View className="mt-3 flex-row items-center justify-between">
-                    <Text
-                      className="text-xs"
-                      style={{
-                        color: `${(NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).text}B3`,
-                      }}
-                    >
-                      {note.date}
+                    <View
+                      className="absolute left-0 top-0 bottom-0 w-1"
+                      style={{ backgroundColor: palette.accent }}
+                    />
+                    <Text className="text-base font-medium" style={{ color: palette.text }}>
+                      {note.text}
                     </Text>
-                    <TouchableOpacity
-                      onPress={() => toggleNoteComplete(note.id)}
-                      className="h-6 w-6 items-center justify-center rounded border-2"
-                      style={{
-                        backgroundColor: note.completed
-                          ? (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).accent
-                          : "transparent",
-                        borderColor: (NOTE_TYPE_COLORS[note.type] || NOTE_TYPE_COLORS.all).accent,
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      {note.completed && (
-                        <MaterialIcons name="check" size={16} color="#FFFFFF" />
-                      )}
-                    </TouchableOpacity>
+                    <View className="mt-3 flex-row items-center justify-between">
+                      <Text className="text-xs" style={{ color: `${palette.text}B3` }}>
+                        {formatNoteDate(note.date)}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => toggleNoteComplete(note.id)}
+                        className="h-6 w-6 items-center justify-center rounded border-2"
+                        style={{
+                          backgroundColor: note.completed ? palette.accent : "transparent",
+                          borderColor: palette.accent,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        {note.completed ? (
+                          <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                        ) : null}
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
+
+          {actionError ? (
+            <View className="mt-2 items-end">
+              <Text className="text-xs text-red-500">{actionError}</Text>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
       <TouchableOpacity
         className="absolute right-6 bottom-36 h-14 w-14 items-center justify-center rounded-full bg-[#0288D1] shadow-lg"
         activeOpacity={0.8}
+        onPress={handleToggleCreateForm}
+        disabled={creating}
+        style={{ opacity: creating ? 0.7 : 1 }}
       >
-        <MaterialIcons name="add" size={30} color="#FFFFFF" />
+        <MaterialIcons name={showCreateForm ? "remove" : "add"} size={30} color="#FFFFFF" />
       </TouchableOpacity>
 
       <View className="absolute left-0 right-0 bottom-0 border-t border-gray-200 bg-white">
