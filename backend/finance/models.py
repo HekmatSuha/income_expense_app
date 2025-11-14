@@ -36,3 +36,31 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.type} - {self.amount}"
+
+
+class Note(models.Model):
+    FREQUENCY_DAILY = "daily"
+    FREQUENCY_WEEKLY = "weekly"
+    FREQUENCY_MONTHLY = "monthly"
+    FREQUENCY_YEARLY = "yearly"
+
+    FREQUENCY_CHOICES = (
+        (FREQUENCY_DAILY, "Daily"),
+        (FREQUENCY_WEEKLY, "Weekly"),
+        (FREQUENCY_MONTHLY, "Monthly"),
+        (FREQUENCY_YEARLY, "Yearly"),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notes")
+    text = models.TextField()
+    date = models.DateField()
+    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default=FREQUENCY_MONTHLY)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-date", "-created_at")
+
+    def __str__(self):
+        return f"{self.user.username} - {self.text[:20]}"
