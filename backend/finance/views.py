@@ -1,7 +1,24 @@
 from django.contrib.auth.models import User
 from rest_framework import generics, permissions, viewsets
-from .models import Transaction
-from .serializers import TransactionSerializer, UserRegistrationSerializer
+
+from .models import BankAccount, Transaction
+from .serializers import (
+    BankAccountSerializer,
+    TransactionSerializer,
+    UserRegistrationSerializer,
+)
+
+
+class BankAccountViewSet(viewsets.ModelViewSet):
+    serializer_class = BankAccountSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return BankAccount.objects.filter(user=self.request.user).order_by("-created_at")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
 
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
