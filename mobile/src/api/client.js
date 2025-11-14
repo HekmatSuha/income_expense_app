@@ -1,8 +1,15 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
+
+const defaultBaseURL = Platform.select({
+  android: "http://10.0.2.2:8000/api",
+  ios: "http://localhost:8000/api",
+  default: "http://localhost:8000/api",
+});
 
 const api = axios.create({
-  baseURL: "http://YOUR_PC_LOCAL_IP:8000/api", // e.g. http://192.168.0.10:8000/api
+  baseURL: process.env.EXPO_PUBLIC_API_URL ?? defaultBaseURL,
 });
 
 api.interceptors.request.use(async (config) => {

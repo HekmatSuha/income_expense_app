@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, TextInput, Button, Picker } from "react-native";
+import { View, TextInput, Button } from "react-native";
 import api from "../src/api/client";
 
 export default function AddTransactionScreen({ navigation }) {
