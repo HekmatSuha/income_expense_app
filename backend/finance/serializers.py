@@ -1,6 +1,15 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Transaction
+
+from .models import BankAccount, Transaction
+
+
+class BankAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BankAccount
+        fields = "__all__"
+        read_only_fields = ("user", "created_at", "updated_at")
+
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
