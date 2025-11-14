@@ -10,6 +10,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
 import api from "../src/api/client";
+import Navigation from "../components/Navigation";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -45,12 +46,6 @@ const quickActions = [
     colorClass: "bg-transactions",
     route: "AddTransaction",
   },
-];
-
-const TAB_ITEMS = [
-  { label: "HOME", active: true },
-  { label: "CALENDAR" },
-  { label: "NOTEBOOK" },
 ];
 
 const formatCurrency = (value) => {
@@ -141,53 +136,48 @@ export default function HomeScreen({ navigation }) {
       .slice(0, 3);
   }, [transactions]);
 
+  const handleTabChange = useCallback(
+    (tab) => {
+      if (tab === "home") {
+        navigation.navigate("Home");
+      }
+      if (tab === "calendar") {
+        navigation.navigate("Calendar");
+      }
+      if (tab === "notebook") {
+        navigation.navigate("Notebook");
+      }
+    },
+    [navigation]
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-background-light">
+      <View className="bg-primary px-4 pt-6 pb-4">
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity className="p-2" activeOpacity={0.7}>
+            <MaterialIcons name="menu" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View className="items-center">
+            <Text className="text-white text-xl font-bold">Income Expense</Text>
+            <View className="flex-row items-center mt-1">
+              <Text className="text-white text-sm font-medium">October 2025</Text>
+              <MaterialIcons name="expand-more" size={18} color="#FFFFFF" />
+            </View>
+          </View>
+          <TouchableOpacity className="p-2" activeOpacity={0.7}>
+            <MaterialIcons name="notifications" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Navigation activeTab="home" onTabChange={handleTabChange} />
+
       <ScrollView
         className="flex-1"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <View className="bg-primary px-4 pt-6 pb-4">
-          <View className="flex-row items-center justify-between">
-            <TouchableOpacity className="p-2" activeOpacity={0.7}>
-              <MaterialIcons name="menu" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-            <View className="items-center">
-              <Text className="text-white text-xl font-bold">Income Expense</Text>
-              <View className="flex-row items-center mt-1">
-                <Text className="text-white text-sm font-medium">October 2025</Text>
-                <MaterialIcons name="expand-more" size={18} color="#FFFFFF" />
-              </View>
-            </View>
-            <TouchableOpacity className="p-2" activeOpacity={0.7}>
-              <MaterialIcons name="notifications" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row justify-around mt-6">
-            {TAB_ITEMS.map((item) => (
-              <View
-                key={item.label}
-                className={`items-center ${item.active ? "" : "opacity-70"}`}
-              >
-                <Text
-                  className={`text-sm font-semibold text-white ${
-                    item.active ? "" : "text-gray-300"
-                  }`}
-                >
-                  {item.label}
-                </Text>
-                <View
-                  className={`mt-2 h-0.5 w-12 ${
-                    item.active ? "bg-white" : "bg-transparent"
-                  }`}
-                />
-              </View>
-            ))}
-          </View>
-        </View>
-
         <View className="px-4 mt-6">
           <View className="flex-row flex-wrap justify-between">
             {quickActions.map((action) => (
