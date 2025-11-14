@@ -1,0 +1,30 @@
+# ---- PYTHON / DJANGO ----
+backend/venv/
+backend/__pycache__/
+backend/**/*.pyc
+
+# Django env
+backend/.env
+
+# ---- NODE / EXPO / REACT NATIVE ----
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
+
+# Metro bundler cache
+.expo/
+.expo-shared/
+
+# NPM logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---- ENV FILES ----
+*.env
+.env
+
+# ---- SYSTEM FILES ----
+.vscode/
+.DS_Store
+Thumbs.db
