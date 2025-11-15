@@ -40,7 +40,7 @@ export default function AddExpenseScreen({ navigation }) {
   const [date, setDate] = useState("14-Nov-2025");
   const [time, setTime] = useState("11:16 PM");
   const [reminder, setReminder] = useState("");
-  const [bankAccounts, setBankAccounts] = useState([]);
+  const [isAccountPickerVisible, setAccountPickerVisible] = useState(false);
 
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
 
@@ -83,6 +83,7 @@ export default function AddExpenseScreen({ navigation }) {
       recurring: reminder,
       time,
       createdAt: parseDateTimeToISO(date, time),
+      currency: account.currency,
     };
 
     try {
@@ -197,9 +198,13 @@ export default function AddExpenseScreen({ navigation }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Account</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.rowCard}>
+            <TouchableOpacity
+              onPress={() => setAccountPickerVisible(true)}
+              activeOpacity={0.8}
+              style={styles.rowCard}
+            >
               <Text style={styles.rowCardInput}>
-                {account ? account.name : "Select account"}
+                {account ? `${account.name} (${account.currency})` : "Select account"}
               </Text>
               <MaterialIcons name="account-balance" size={22} color="#0288D1" />
             </TouchableOpacity>
@@ -283,6 +288,32 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={styles.saveButtonText}>Save</Text>
         </TouchableOpacity>
       </View>
+      <Modal
+        visible={isAccountPickerVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setAccountPickerVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <FlatList
+              data={bankAccounts}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setAccount(item);
+                    setAccountPickerVisible(false);
+                  }}
+                  style={styles.modalItem}
+                >
+                  <Text>{`${item.name} (${item.currency})`}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
