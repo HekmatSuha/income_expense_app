@@ -12,7 +12,6 @@ const TouchableOpacity = styled(RNTouchableOpacity);
 
 const TABS = [
   { key: "home", label: "Home" },
-  { key: "calendar", label: "Calendar" },
   { key: "bankAccounts", label: "Bank Accounts" },
   { key: "notebook", label: "Notebook" },
 ];

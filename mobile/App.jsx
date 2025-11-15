@@ -5,7 +5,6 @@ import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import HomeScreen from "./screens/HomeScreen";
 import AddTransactionScreen from "./screens/AddTransactionScreen";
-import CalendarScreen from "./screens/CalendarScreen";
 import NotebookScreen from "./screens/NotebookScreen";
 import BankAccountsScreen from "./screens/BankAccountsScreen";
 import AddExpenseScreen from "./screens/AddExpenseScreen";
@@ -38,7 +37,6 @@ export default function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen name="BankAccounts" component={BankAccountsScreen} />
-        <Stack.Screen name="Calendar" component={CalendarScreen} />
         <Stack.Screen name="Notebook" component={NotebookScreen} />
         <Stack.Screen name="AddTransaction" component={AddTransactionScreen} />
         <Stack.Screen
