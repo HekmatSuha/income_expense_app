@@ -10,6 +10,7 @@ import BankAccountsScreen from "./screens/BankAccountsScreen";
 import AddExpenseScreen from "./screens/AddExpenseScreen";
 import TransactionsScreen from "./screens/TransactionsScreen";
 import TransferScreen from "./screens/TransferScreen";
+import AddIncomeScreen from "./screens/AddIncomeScreen";
 
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 
@@ -42,6 +43,11 @@ export default function App() {
         <Stack.Screen
           name="AddExpense"
           component={AddExpenseScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AddIncome"
+          component={AddIncomeScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

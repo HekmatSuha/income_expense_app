@@ -23,13 +23,6 @@ const TouchableOpacity = styled(RNTouchableOpacity);
 import { currencies } from "../constants/currencies";
 import { Modal, FlatList } from "react-native";
 
-const SafeAreaView = styled(RNSafeAreaView);
-const ScrollView = styled(RNScrollView);
-const View = styled(RNView);
-const Text = styled(RNText);
-const TextInput = styled(RNTextInput);
-const TouchableOpacity = styled(RNTouchableOpacity);
-
 function formatCurrency(value, currency) {
   return (Number(value) || 0).toLocaleString(undefined, {
     style: "currency",

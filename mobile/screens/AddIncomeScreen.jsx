@@ -8,6 +8,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
+  FlatList,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { persistTransaction } from "../services/transactionRepository";
@@ -34,13 +36,21 @@ const buildDateLabel = (value) => {
 export default function AddIncomeScreen({ navigation }) {
   const [income, setIncome] = useState("");
   const [category, setCategory] = useState("Salary");
-  const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
+  const [paymentMethod, setPaymentMethod] = useState("Bank");
   const [account, setAccount] = useState(null);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState("14-Nov-2025");
   const [time, setTime] = useState("11:16 PM");
   const [reminder, setReminder] = useState("");
   const [isAccountPickerVisible, setAccountPickerVisible] = useState(false);
+  const [categories, setCategories] = useState(['Salary', 'Freelance', 'Investment']);
+  const [isCategoryPickerVisible, setCategoryPickerVisible] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState(['Cash', 'Bank']);
+  const [isPaymentMethodPickerVisible, setPaymentMethodPickerVisible] = useState(false);
+  const [newPaymentMethod, setNewPaymentMethod] = useState('');
+  const [isIncomeInputFocused, setIsIncomeInputFocused] = useState(false); // New state
 
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
 
@@ -62,6 +72,28 @@ export default function AddIncomeScreen({ navigation }) {
     }, [loadBankAccounts])
   );
 
+  const handleIncomeChange = (text) => {
+    // Remove non-numeric characters except for a single decimal point
+    const rawText = text.replace(/[^0-9.]/g, '');
+    // Ensure only one decimal point
+    const parts = rawText.split('.');
+    let integer = parts[0];
+    let decimal = parts[1];
+
+    // Format integer part with commas
+    if (integer) {
+      integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    // Recombine
+    let formattedText = integer;
+    if (decimal !== undefined) {
+      formattedText = `${integer}.${decimal}`;
+    }
+
+    setIncome(formattedText);
+  };
+
   const handleSave = useCallback(async () => {
     if (!income) {
       Alert.alert("Missing amount", "Please enter an amount to continue.");
@@ -74,7 +106,7 @@ export default function AddIncomeScreen({ navigation }) {
     }
 
     const payload = {
-      amount: Number(income),
+      amount: Number(income.replace(/,/g, '')), // Remove commas before saving
       type: "INCOME",
       category,
       note: notes,
@@ -151,14 +183,19 @@ export default function AddIncomeScreen({ navigation }) {
         >
           <View style={styles.section}>
             <Text style={styles.incomeLabel}>Income</Text>
-            <View style={styles.inputWithIcon}>
+            <View style={[
+              styles.inputWithIcon,
+              isIncomeInputFocused && styles.inputWithIconFocused // Apply focused style
+            ]}>
               <TextInput
                 value={income}
-                onChangeText={setIncome}
+                onChangeText={handleIncomeChange} // Use new handler
                 placeholder="Enter amount"
                 keyboardType="numeric"
                 style={styles.textInput}
                 placeholderTextColor="#9CA3AF"
+                onFocus={() => setIsIncomeInputFocused(true)} // Set focus state
+                onBlur={() => setIsIncomeInputFocused(false)}   // Unset focus state
               />
               <MaterialIcons name="calculate" size={22} color="#0288D1" />
             </View>
@@ -166,15 +203,11 @@ export default function AddIncomeScreen({ navigation }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Category</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.rowCard}>
+            <TouchableOpacity onPress={() => setCategoryPickerVisible(true)} activeOpacity={0.8} style={styles.rowCard}>
               <View style={styles.rowCardIcon}>
                 <MaterialIcons name="work" size={22} color="#4B5563" />
               </View>
-              <TextInput
-                value={category}
-                onChangeText={setCategory}
-                style={styles.rowCardInput}
-              />
+              <Text style={styles.rowCardInput}>{category}</Text>
               <View style={styles.categoryDots}>
                 <View style={styles.dot} />
                 <View style={styles.dot} />
@@ -186,12 +219,8 @@ export default function AddIncomeScreen({ navigation }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Payment Method</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.rowCard}>
-              <TextInput
-                value={paymentMethod}
-                onChangeText={setPaymentMethod}
-                style={styles.rowCardInput}
-              />
+            <TouchableOpacity onPress={() => setPaymentMethodPickerVisible(true)} activeOpacity={0.8} style={styles.rowCard}>
+              <Text style={styles.rowCardInput}>{paymentMethod}</Text>
               <MaterialIcons name="credit-card" size={22} color="#0288D1" />
             </TouchableOpacity>
           </View>
@@ -275,12 +304,6 @@ export default function AddIncomeScreen({ navigation }) {
       </View>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={[styles.bottomButton, styles.bottomDivider]}>
-          <Text style={styles.bottomButtonText}>Payment Method</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.bottomButton, styles.bottomDivider]}>
-          <Text style={styles.bottomButtonText}>Category</Text>
-        </TouchableOpacity>
         <TouchableOpacity
           onPress={handleSave}
           style={[styles.bottomButton, styles.saveButton]}
@@ -311,6 +334,80 @@ export default function AddIncomeScreen({ navigation }) {
                 </TouchableOpacity>
               )}
             />
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={isCategoryPickerVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCategoryPickerVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <FlatList
+              data={categories}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setCategory(item);
+                    setCategoryPickerVisible(false);
+                  }}
+                  style={styles.modalItem}
+                >
+                  <Text>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <View style={styles.modalInputContainer}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="New Category"
+                value={newCategory}
+                onChangeText={setNewCategory}
+              />
+              <TouchableOpacity onPress={handleAddCategory} style={styles.modalAddButton}>
+                <Text style={styles.modalAddButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={isPaymentMethodPickerVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPaymentMethodPickerVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <FlatList
+              data={paymentMethods}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setPaymentMethod(item);
+                    setPaymentMethodPickerVisible(false);
+                  }}
+                  style={styles.modalItem}
+                >
+                  <Text>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <View style={styles.modalInputContainer}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="New Payment Method"
+                value={newPaymentMethod}
+                onChangeText={setNewPaymentMethod}
+              />
+              <TouchableOpacity onPress={handleAddPaymentMethod} style={styles.modalAddButton}>
+                <Text style={styles.modalAddButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -486,15 +583,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  bottomDivider: {
-    borderRightWidth: 1,
-    borderRightColor: "#D1D5DB",
-  },
-  bottomButtonText: {
-    color: "#111827",
-    fontSize: 14,
-    fontWeight: "500",
-  },
   saveButton: {
     backgroundColor: "#0288D1",
   },
@@ -503,5 +591,48 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
     textTransform: "uppercase",
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    width: "80%",
+  },
+  modalItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  modalInputContainer: {
+    flexDirection: 'row',
+    marginTop: 10,
+  },
+  modalInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+  },
+  modalAddButton: {
+    backgroundColor: '#0288D1',
+    padding: 10,
+    borderRadius: 5,
+    marginLeft: 10,
+    justifyContent: 'center',
+  },
+  modalAddButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  inputWithIconFocused: {
+    borderColor: '#0288D1', // Example: change border color on focus
+    borderWidth: 2, // Example: make border thicker on focus
   },
 });
