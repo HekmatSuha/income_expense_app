@@ -1,0 +1,252 @@
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView as RNSafeAreaView,
+  ScrollView as RNScrollView,
+  View as RNView,
+  Text as RNText,
+  TouchableOpacity as RNTouchableOpacity,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { Feather } from "@expo/vector-icons";
+import { styled } from "../packages/nativewind";
+
+const SafeAreaView = styled(RNSafeAreaView);
+const ScrollView = styled(RNScrollView);
+const View = styled(RNView);
+const Text = styled(RNText);
+const TouchableOpacity = styled(RNTouchableOpacity);
+
+const mockTransactions = [
+  {
+    id: "1",
+    date: "Fri, 14 Nov 2025",
+    time: "11:43 AM",
+    category: "Pension",
+    amount: 2500,
+    type: "income",
+    balance: 140500,
+    paymentMethod: "Kaspi",
+  },
+  {
+    id: "2",
+    date: "Sun, 12 Oct 2025",
+    time: "11:40 PM",
+    category: "Air Tickets",
+    amount: 2000,
+    type: "expense",
+    balance: 138000,
+    paymentMethod: "Card",
+  },
+  {
+    id: "3",
+    date: "Sun, 12 Oct 2025",
+    time: "11:39 PM",
+    category: "Allowance",
+    amount: 120000,
+    type: "income",
+    balance: 140000,
+    paymentMethod: "Cash",
+  },
+  {
+    id: "4",
+    date: "Sun, 12 Oct 2025",
+    time: "11:38 PM",
+    category: "Allowance",
+    amount: 20000,
+    type: "income",
+    balance: 20000,
+    paymentMethod: "Cash",
+    note: "From Ahmad",
+  },
+];
+
+const timeFilters = ["All", "Daily", "Weekly", "Monthly", "Yearly"];
+
+const formatCurrency = (value) => {
+  const numeric = Number(value) || 0;
+  return numeric.toLocaleString();
+};
+
+export default function TransactionsScreen() {
+  const navigation = useNavigation();
+  const [activeFilter, setActiveFilter] = useState("All");
+
+  const totalIncome = useMemo(
+    () =>
+      mockTransactions
+        .filter((transaction) => transaction.type === "income")
+        .reduce((sum, transaction) => sum + transaction.amount, 0),
+    []
+  );
+
+  const totalExpense = useMemo(
+    () =>
+      mockTransactions
+        .filter((transaction) => transaction.type === "expense")
+        .reduce((sum, transaction) => sum + transaction.amount, 0),
+    []
+  );
+
+  const balance = useMemo(() => totalIncome - totalExpense, [totalIncome, totalExpense]);
+
+  return (
+    <SafeAreaView className="flex-1 bg-gray-100">
+      <View className="flex-1 bg-gray-100">
+        <View className="bg-[#0288D1]">
+          <View className="flex-row items-center justify-between px-4 py-4">
+            <View className="flex-row items-center gap-4">
+              <TouchableOpacity
+                className="p-2"
+                activeOpacity={0.7}
+                onPress={() => {
+                  if (navigation.canGoBack?.()) {
+                    navigation.goBack();
+                  }
+                }}
+              >
+                <Feather name="arrow-left" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+              <Text className="text-white text-xl font-semibold">Transactions</Text>
+            </View>
+            <View className="flex-row items-center gap-4">
+              <TouchableOpacity className="p-2" activeOpacity={0.7}>
+                <Feather name="search" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity className="p-2" activeOpacity={0.7}>
+                <Feather name="menu" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity className="p-2" activeOpacity={0.7}>
+                <Feather name="more-vertical" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+          >
+            <View className="flex-row gap-3">
+              {timeFilters.map((filter) => {
+                const isActive = activeFilter === filter;
+                return (
+                  <TouchableOpacity
+                    key={filter}
+                    className={`px-4 py-2 rounded-full ${
+                      isActive ? "bg-white" : "bg-white/20"
+                    }`}
+                    activeOpacity={0.8}
+                    onPress={() => setActiveFilter(filter)}
+                  >
+                    <Text className={`${isActive ? "text-gray-900" : "text-white"} text-sm font-medium`}>
+                      {filter}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+
+        <View className="bg-[#0288D1]">
+          <Text className="text-white text-center py-3 text-base font-medium">All</Text>
+        </View>
+
+        <View className="flex-1">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 24 }}
+          >
+            <View className="bg-white">
+              <View className="flex-row items-center border-b border-gray-200 px-4 py-3 bg-gray-50">
+                <Text className="flex-1 text-xs font-semibold text-gray-600">Date</Text>
+                <Text className="flex-1 text-xs font-semibold text-gray-600">Category</Text>
+                <Text className="w-20 text-right text-xs font-semibold text-green-600">Income</Text>
+                <Text className="w-20 text-right text-xs font-semibold text-red-600">Expense</Text>
+              </View>
+
+              {mockTransactions.map((transaction, index) => {
+                const isLast = index === mockTransactions.length - 1;
+                return (
+                  <View key={transaction.id} className={`${!isLast ? "border-b border-gray-200" : ""}`}>
+                    <View className="flex-row items-start px-4 py-4 gap-3">
+                      <View className="flex-1">
+                        <Text className="text-sm text-gray-800">{transaction.date}</Text>
+                        <Text className="text-xs text-gray-500 mt-1">{transaction.time}</Text>
+                      </View>
+                      <Text className="flex-1 text-sm text-gray-800">{transaction.category}</Text>
+                      <Text
+                        className={`w-20 text-right text-sm ${
+                          transaction.type === "income" ? "text-green-600" : "text-transparent"
+                        }`}
+                      >
+                        {transaction.type === "income" ? formatCurrency(transaction.amount) : "-"}
+                      </Text>
+                      <Text
+                        className={`w-20 text-right text-sm ${
+                          transaction.type === "expense" ? "text-red-600" : "text-transparent"
+                        }`}
+                      >
+                        {transaction.type === "expense" ? formatCurrency(transaction.amount) : "-"}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between px-4 pb-4">
+                      <View className="flex-row items-center gap-2">
+                        {transaction.paymentMethod ? (
+                          <View className="px-3 py-1 rounded-full border border-gray-300 bg-white">
+                            <Text className="text-xs font-medium text-gray-700">
+                              {transaction.paymentMethod}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {transaction.note ? (
+                          <Text className="text-xs text-gray-500">{transaction.note}</Text>
+                        ) : null}
+                      </View>
+                      <Text className="text-xs text-gray-500">
+                        Balance {formatCurrency(transaction.balance)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+
+        <View className="bg-white border-t border-gray-200">
+          <View className="flex-row gap-3 px-4 py-4">
+            <TouchableOpacity
+              className="flex-1 h-12 rounded-lg items-center justify-center bg-[#4CAF50]"
+              activeOpacity={0.85}
+            >
+              <Text className="text-white font-semibold">Income</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 h-12 rounded-lg items-center justify-center bg-[#F44336]"
+              activeOpacity={0.85}
+            >
+              <Text className="text-white font-semibold">Expense</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-row border-t border-gray-200">
+            <View className="flex-1 items-center justify-center py-4 border-r border-gray-200">
+              <Text className="text-xs text-gray-600">Total Income</Text>
+              <Text className="text-green-600 text-base font-semibold">{formatCurrency(totalIncome)}</Text>
+            </View>
+            <View className="flex-1 items-center justify-center py-4 border-r border-gray-200">
+              <Text className="text-xs text-red-600">Total Expense</Text>
+              <Text className="text-red-600 text-base font-semibold">{formatCurrency(totalExpense)}</Text>
+            </View>
+            <View className="flex-1 items-center justify-center py-4">
+              <Text className="text-xs text-gray-700">Balance</Text>
+              <Text className="text-gray-900 text-base font-semibold">{formatCurrency(balance)}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}

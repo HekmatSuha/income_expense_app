@@ -44,7 +44,7 @@ const quickActions = [
     label: "Transactions",
     icon: "list-alt",
     colorClass: "bg-transactions",
-    route: "AddTransaction",
+    route: "Transactions",
   },
 ];
 
