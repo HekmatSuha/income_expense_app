@@ -10,8 +10,7 @@ import {
   View,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { addDoc, collection } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { persistTransaction } from "../services/transactionRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -40,16 +39,7 @@ export default function TransferScreen({ navigation }) {
     }
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        Alert.alert(
-          "Not authenticated",
-          "You must be logged in to record a transfer."
-        );
-        return;
-      }
-
-      await addDoc(collection(db, "transactions"), {
+      const result = await persistTransaction({
         amount: Number(amount),
         type: "TRANSFER",
         fromBank,
@@ -59,9 +49,26 @@ export default function TransferScreen({ navigation }) {
         note: notes,
         time,
         date: parseDateTimeToISO(date, time),
-        userId: user.uid,
         createdAt: new Date().toISOString(),
       });
+
+      if (result.status === "local-only") {
+        Alert.alert(
+          "Saved locally",
+          "Sign in to sync this transfer with your account."
+        );
+        navigation.goBack();
+        return;
+      }
+
+      if (result.status === "offline-fallback") {
+        Alert.alert(
+          "Saved offline",
+          "We'll sync this transfer once you're back online."
+        );
+        navigation.goBack();
+        return;
+      }
 
       navigation.goBack();
     } catch (error) {
@@ -71,7 +78,17 @@ export default function TransferScreen({ navigation }) {
         "Unable to save the transfer at the moment. Please try again."
       );
     }
-  }, [amount, date, fromAccount, fromBank, navigation, notes, time, toAccount, toBank]);
+  }, [
+    amount,
+    date,
+    fromAccount,
+    fromBank,
+    navigation,
+    notes,
+    time,
+    toAccount,
+    toBank,
+  ]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

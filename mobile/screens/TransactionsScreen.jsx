@@ -9,8 +9,8 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
+import { subscribeToRemoteTransactions } from "../services/transactions";
 import {
   LOCAL_USER_ID,
   getTransactionsForUser,
@@ -57,15 +57,8 @@ export default function TransactionsScreen() {
       };
     }
 
-    const transactionsQuery = query(
-      collection(db, "transactions"),
-      where("userId", "==", uid)
-    );
-
-    const unsubscribe = onSnapshot(
-      transactionsQuery,
-      async (snapshot) => {
-        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const unsubscribe = subscribeToRemoteTransactions(uid, {
+      onData: async (items) => {
         if (isMounted) {
           setTransactions(items);
         }
@@ -75,7 +68,7 @@ export default function TransactionsScreen() {
           console.error("Failed to cache transactions locally", error);
         }
       },
-      async (error) => {
+      onError: async (error) => {
         console.error("Failed to load transactions from Firestore", error);
         try {
           const localItems = await getTransactionsForUser(uid);
@@ -88,8 +81,8 @@ export default function TransactionsScreen() {
             setTransactions([]);
           }
         }
-      }
-    );
+      },
+    });
 
     return () => {
       isMounted = false;

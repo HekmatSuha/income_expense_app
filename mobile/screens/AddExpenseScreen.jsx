@@ -10,9 +10,7 @@ import {
   View,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { addDoc, collection } from "firebase/firestore";
-import { auth, db } from "../firebase";
-import { LOCAL_USER_ID, saveTransactionForUser } from "../storage/transactions";
+import { persistTransaction } from "../services/transactionRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -49,8 +47,6 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    const user = auth.currentUser;
-    const targetUserId = user?.uid || LOCAL_USER_ID;
     const payload = {
       amount: Number(expense),
       type: "EXPENSE",
@@ -64,54 +60,34 @@ export default function AddExpenseScreen({ navigation }) {
       createdAt: new Date().toISOString(),
     };
 
-    const persistLocally = async () => {
-      try {
-        await saveTransactionForUser(targetUserId, payload);
-        return true;
-      } catch (storageError) {
-        console.error("Failed to store expense locally", storageError);
-        Alert.alert(
-          "Storage error",
-          "We couldn't save the expense on this device. Please try again."
-        );
-        return false;
-      }
-    };
+    try {
+      const result = await persistTransaction(payload);
 
-    if (!user) {
-      const saved = await persistLocally();
-      if (saved) {
+      if (result.status === "local-only") {
         Alert.alert(
           "Saved locally",
           "Sign in to sync this expense with your account."
         );
         navigation.goBack();
+        return;
       }
-      return;
-    }
 
-    try {
-      await addDoc(collection(db, "transactions"), {
-        ...payload,
-        userId: user.uid,
-      });
-      await persistLocally();
+      if (result.status === "offline-fallback") {
+        Alert.alert(
+          "Saved offline",
+          "We'll sync this expense with your account once you're back online."
+        );
+        navigation.goBack();
+        return;
+      }
+
       navigation.goBack();
     } catch (error) {
       console.error("Failed to save expense", error);
-      const saved = await persistLocally();
-      if (saved) {
-        Alert.alert(
-          "Saved offline",
-          "We stored the expense locally and will keep it available on this device."
-        );
-        navigation.goBack();
-      } else {
-        Alert.alert(
-          "Error",
-          "Unable to save the expense at the moment. Please try again."
-        );
-      }
+      Alert.alert(
+        "Error",
+        "Unable to save the expense at the moment. Please try again."
+      );
     }
   }, [
     account,

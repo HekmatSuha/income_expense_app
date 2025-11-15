@@ -9,8 +9,13 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
 import Navigation from "../components/Navigation";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
+import { fetchRemoteTransactions } from "../services/transactions";
+import {
+  LOCAL_USER_ID,
+  getTransactionsForUser,
+  setTransactionsForUser,
+} from "../storage/transactions";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -88,19 +93,28 @@ export default function CalendarScreen({ navigation }) {
     try {
       const user = auth.currentUser;
       if (!user) {
-        setTransactions([]);
+        const localTransactions = await getTransactionsForUser(LOCAL_USER_ID);
+        setTransactions(localTransactions);
         return;
       }
 
-      const transactionsQuery = query(
-        collection(db, "transactions"),
-        where("userId", "==", user.uid)
-      );
-      const snapshot = await getDocs(transactionsQuery);
-      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setTransactions(data);
+      const remoteTransactions = await fetchRemoteTransactions(user.uid);
+      setTransactions(remoteTransactions);
+      try {
+        await setTransactionsForUser(user.uid, remoteTransactions);
+      } catch (cacheError) {
+        console.error("Failed to cache transactions for calendar", cacheError);
+      }
     } catch (error) {
       console.error("Failed to fetch transactions", error);
+      try {
+        const fallbackUserId = auth.currentUser?.uid || LOCAL_USER_ID;
+        const localTransactions = await getTransactionsForUser(fallbackUserId);
+        setTransactions(localTransactions);
+      } catch (localError) {
+        console.error("Failed to load local transactions for calendar", localError);
+        setTransactions([]);
+      }
     }
   }, []);
 

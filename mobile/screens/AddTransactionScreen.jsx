@@ -10,9 +10,7 @@ import {
   View,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { addDoc, collection } from "firebase/firestore";
-import { auth, db } from "../firebase";
-import { LOCAL_USER_ID, saveTransactionForUser } from "../storage/transactions";
+import { persistTransaction } from "../services/transactionRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -96,8 +94,6 @@ export default function AddTransactionScreen({ navigation, route }) {
       return;
     }
 
-    const user = auth.currentUser;
-    const targetUserId = user?.uid || LOCAL_USER_ID;
     const transactionPayload = {
       amount: Number(amount),
       type,
@@ -111,54 +107,34 @@ export default function AddTransactionScreen({ navigation, route }) {
       createdAt: new Date().toISOString(),
     };
 
-    const persistLocally = async () => {
-      try {
-        await saveTransactionForUser(targetUserId, transactionPayload);
-        return true;
-      } catch (storageError) {
-        console.error("Failed to store transaction locally", storageError);
-        Alert.alert(
-          "Storage error",
-          "We couldn't save the transaction on this device. Please try again."
-        );
-        return false;
-      }
-    };
+    try {
+      const result = await persistTransaction(transactionPayload);
 
-    if (!user) {
-      const saved = await persistLocally();
-      if (saved) {
+      if (result.status === "local-only") {
         Alert.alert(
           "Saved locally",
           "Sign in to sync this transaction with your account."
         );
         navigation.goBack();
+        return;
       }
-      return;
-    }
 
-    try {
-      await addDoc(collection(db, "transactions"), {
-        ...transactionPayload,
-        userId: user.uid,
-      });
-      await persistLocally();
+      if (result.status === "offline-fallback") {
+        Alert.alert(
+          "Saved offline",
+          "We'll sync this transaction with your account once you're back online."
+        );
+        navigation.goBack();
+        return;
+      }
+
       navigation.goBack();
     } catch (error) {
       console.error("Failed to save transaction", error);
-      const saved = await persistLocally();
-      if (saved) {
-        Alert.alert(
-          "Saved offline",
-          "We stored the transaction locally and will keep it available on this device."
-        );
-        navigation.goBack();
-      } else {
-        Alert.alert(
-          "Error",
-          "Unable to save the transaction at the moment. Please try again."
-        );
-      }
+      Alert.alert(
+        "Error",
+        "Unable to save the transaction at the moment. Please try again."
+      );
     }
   };
 
