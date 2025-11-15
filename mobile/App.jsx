@@ -8,6 +8,7 @@ import AddTransactionScreen from "./screens/AddTransactionScreen";
 import CalendarScreen from "./screens/CalendarScreen";
 import NotebookScreen from "./screens/NotebookScreen";
 import BankAccountsScreen from "./screens/BankAccountsScreen";
+import AddExpenseScreen from "./screens/AddExpenseScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -26,6 +27,11 @@ export default function App() {
         <Stack.Screen name="Calendar" component={CalendarScreen} />
         <Stack.Screen name="Notebook" component={NotebookScreen} />
         <Stack.Screen name="AddTransaction" component={AddTransactionScreen} />
+        <Stack.Screen
+          name="AddExpense"
+          component={AddExpenseScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
