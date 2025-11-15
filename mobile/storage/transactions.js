@@ -25,6 +25,7 @@ const writeAllTransactions = async (data) => {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
     console.warn("Failed to write stored transactions", error);
+    throw error;
   }
 };
 
@@ -40,30 +41,82 @@ const normalizeTransactions = (transactions) => {
   return transactions.filter((item) => item && typeof item === "object");
 };
 
+const toTimestamp = (value) => {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 0;
+  }
+  return parsed.getTime();
+};
+
+const sortTransactions = (transactions) =>
+  [...transactions].sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
+
+const mergeTransactionsById = (transactions) => {
+  const seen = new Set();
+  const merged = [];
+
+  transactions.forEach((original) => {
+    if (!original || typeof original !== "object") {
+      return;
+    }
+
+    const transaction = { ...original };
+    if (!transaction.id) {
+      transaction.id = generateLocalId();
+    }
+
+    if (seen.has(transaction.id)) {
+      return;
+    }
+
+    seen.add(transaction.id);
+    merged.push(transaction);
+  });
+
+  return merged;
+};
+
+const withSyncState = (transaction) => ({
+  ...transaction,
+  synced: transaction?.synced ?? false,
+});
+
 export const getTransactionsForUser = async (userId = LOCAL_USER_ID) => {
   const all = await readAllTransactions();
-  return normalizeTransactions(all[userId]);
+  return sortTransactions(normalizeTransactions(all[userId]));
 };
 
 export const saveTransactionForUser = async (userId, transaction) => {
   const all = await readAllTransactions();
   const existing = normalizeTransactions(all[userId]);
-  const persistedTransaction = {
+  const persistedTransaction = withSyncState({
     id: transaction?.id || generateLocalId(),
     ...transaction,
     userId,
-  };
-  all[userId] = [persistedTransaction, ...existing];
+  });
+  const updated = sortTransactions(
+    mergeTransactionsById([persistedTransaction, ...existing])
+  );
+  all[userId] = updated;
   await writeAllTransactions(all);
   return persistedTransaction;
 };
 
 export const setTransactionsForUser = async (userId, transactions) => {
   const all = await readAllTransactions();
-  all[userId] = normalizeTransactions(transactions).map((transaction) => ({
-    id: transaction?.id || generateLocalId(),
-    ...transaction,
-    userId,
-  }));
+  const normalized = normalizeTransactions(transactions).map((transaction) =>
+    withSyncState({
+      id: transaction?.id || generateLocalId(),
+      ...transaction,
+      userId,
+      synced: transaction?.synced ?? true,
+    })
+  );
+  all[userId] = sortTransactions(mergeTransactionsById(normalized));
   await writeAllTransactions(all);
 };

@@ -10,8 +10,11 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
-import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
+import {
+  fetchRemoteTransactions,
+  subscribeToRemoteTransactions,
+} from "../services/transactions";
 import {
   LOCAL_USER_ID,
   getTransactionsForUser,
@@ -92,15 +95,6 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const unsubscribeRef = useRef(null);
 
-  const createUserTransactionsQuery = useCallback(() => {
-    const user = auth.currentUser;
-    if (!user) {
-      return null;
-    }
-
-    return query(collection(db, "transactions"), where("userId", "==", user.uid));
-  }, []);
-
   const loadLocalTransactions = useCallback(async () => {
     try {
       const userId = auth.currentUser?.uid || LOCAL_USER_ID;
@@ -113,9 +107,9 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const loadData = useCallback(() => {
-    const transactionsQuery = createUserTransactionsQuery();
+    const userId = auth.currentUser?.uid;
 
-    if (!transactionsQuery) {
+    if (!userId) {
       loadLocalTransactions();
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
@@ -129,30 +123,24 @@ export default function HomeScreen({ navigation }) {
       unsubscribeRef.current = null;
     }
 
-    const userId = auth.currentUser?.uid || LOCAL_USER_ID;
-    const unsubscribe = onSnapshot(
-      transactionsQuery,
-      async (snapshot) => {
-        const transactionsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setTransactions(transactionsData);
+    const unsubscribe = subscribeToRemoteTransactions(userId, {
+      onData: async (remoteTransactions) => {
+        setTransactions(remoteTransactions);
         try {
-          await setTransactionsForUser(userId, transactionsData);
+          await setTransactionsForUser(userId, remoteTransactions);
         } catch (error) {
           console.error("Failed to cache transactions locally", error);
         }
       },
-      (error) => {
+      onError: async (error) => {
         console.error("Failed to load transactions from Firestore", error);
-        loadLocalTransactions();
-      }
-    );
+        await loadLocalTransactions();
+      },
+    });
 
     unsubscribeRef.current = unsubscribe;
     return unsubscribe;
-  }, [createUserTransactionsQuery, loadLocalTransactions]);
+  }, [loadLocalTransactions]);
 
   useFocusEffect(
     useCallback(() => {
@@ -170,18 +158,13 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const transactionsQuery = createUserTransactionsQuery();
-      if (!transactionsQuery) {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
         await loadLocalTransactions();
         return;
       }
 
-      const userId = auth.currentUser?.uid || LOCAL_USER_ID;
-      const snapshot = await getDocs(transactionsQuery);
-      const transactionsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const transactionsData = await fetchRemoteTransactions(userId);
       setTransactions(transactionsData);
       try {
         await setTransactionsForUser(userId, transactionsData);
@@ -194,7 +177,7 @@ export default function HomeScreen({ navigation }) {
     } finally {
       setRefreshing(false);
     }
-  }, [createUserTransactionsQuery, loadLocalTransactions]);
+  }, [loadLocalTransactions]);
 
   const { incomeTotal, expenseTotal } = useMemo(() => {
     return transactions.reduce(
