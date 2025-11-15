@@ -11,6 +11,11 @@ import { Feather } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import {
+  LOCAL_USER_ID,
+  getTransactionsForUser,
+  setTransactionsForUser,
+} from "../storage/transactions";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -32,9 +37,24 @@ export default function TransactionsScreen() {
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
+    let isMounted = true;
+
     if (!uid) {
-      setTransactions([]);
-      return undefined;
+      getTransactionsForUser(LOCAL_USER_ID)
+        .then((items) => {
+          if (isMounted) {
+            setTransactions(items);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to load local transactions", error);
+          if (isMounted) {
+            setTransactions([]);
+          }
+        });
+      return () => {
+        isMounted = false;
+      };
     }
 
     const transactionsQuery = query(
@@ -42,12 +62,39 @@ export default function TransactionsScreen() {
       where("userId", "==", uid)
     );
 
-    const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setTransactions(items);
-    });
+    const unsubscribe = onSnapshot(
+      transactionsQuery,
+      async (snapshot) => {
+        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        if (isMounted) {
+          setTransactions(items);
+        }
+        try {
+          await setTransactionsForUser(uid, items);
+        } catch (error) {
+          console.error("Failed to cache transactions locally", error);
+        }
+      },
+      async (error) => {
+        console.error("Failed to load transactions from Firestore", error);
+        try {
+          const localItems = await getTransactionsForUser(uid);
+          if (isMounted) {
+            setTransactions(localItems);
+          }
+        } catch (localError) {
+          console.error("Failed to load cached transactions", localError);
+          if (isMounted) {
+            setTransactions([]);
+          }
+        }
+      }
+    );
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [uid]);
 
   const formatDateTime = useCallback((value) => {

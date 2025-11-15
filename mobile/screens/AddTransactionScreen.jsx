@@ -12,6 +12,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { addDoc, collection } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { LOCAL_USER_ID, saveTransactionForUser } from "../storage/transactions";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -95,32 +96,69 @@ export default function AddTransactionScreen({ navigation, route }) {
       return;
     }
 
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        Alert.alert("Not authenticated", "You must be logged in to add a transaction.");
-        return;
+    const user = auth.currentUser;
+    const targetUserId = user?.uid || LOCAL_USER_ID;
+    const transactionPayload = {
+      amount: Number(amount),
+      type,
+      category,
+      note: notes,
+      paymentMethod,
+      paymentAccount,
+      recurring,
+      time,
+      date: parseDateTimeToISO(date, time),
+      createdAt: new Date().toISOString(),
+    };
+
+    const persistLocally = async () => {
+      try {
+        await saveTransactionForUser(targetUserId, transactionPayload);
+        return true;
+      } catch (storageError) {
+        console.error("Failed to store transaction locally", storageError);
+        Alert.alert(
+          "Storage error",
+          "We couldn't save the transaction on this device. Please try again."
+        );
+        return false;
       }
+    };
+
+    if (!user) {
+      const saved = await persistLocally();
+      if (saved) {
+        Alert.alert(
+          "Saved locally",
+          "Sign in to sync this transaction with your account."
+        );
+        navigation.goBack();
+      }
+      return;
+    }
+
+    try {
       await addDoc(collection(db, "transactions"), {
-        amount: Number(amount),
-        type,
-        category,
-        note: notes,
-        paymentMethod,
-        paymentAccount,
-        recurring,
-        time,
-        date: parseDateTimeToISO(date, time),
+        ...transactionPayload,
         userId: user.uid,
-        createdAt: new Date().toISOString(),
       });
+      await persistLocally();
       navigation.goBack();
     } catch (error) {
       console.error("Failed to save transaction", error);
-      Alert.alert(
-        "Error",
-        "Unable to save the transaction at the moment. Please try again."
-      );
+      const saved = await persistLocally();
+      if (saved) {
+        Alert.alert(
+          "Saved offline",
+          "We stored the transaction locally and will keep it available on this device."
+        );
+        navigation.goBack();
+      } else {
+        Alert.alert(
+          "Error",
+          "Unable to save the transaction at the moment. Please try again."
+        );
+      }
     }
   };
 
