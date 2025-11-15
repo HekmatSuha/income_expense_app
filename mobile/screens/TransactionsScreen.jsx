@@ -84,20 +84,27 @@ export default function TransactionsScreen() {
     return { date, time };
   }, []);
 
+  const normalizeType = useCallback((value) => {
+    if (typeof value === "string") {
+      return value.toUpperCase();
+    }
+    return value;
+  }, []);
+
   const totalIncome = useMemo(
     () =>
       transactions
-        .filter((transaction) => transaction.type === "income")
+        .filter((transaction) => normalizeType(transaction.type) === "INCOME")
         .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0),
-    [transactions]
+    [normalizeType, transactions]
   );
 
   const totalExpense = useMemo(
     () =>
       transactions
-        .filter((transaction) => transaction.type === "expense")
+        .filter((transaction) => normalizeType(transaction.type) === "EXPENSE")
         .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0),
-    [transactions]
+    [normalizeType, transactions]
   );
 
   const balance = useMemo(() => totalIncome - totalExpense, [totalIncome, totalExpense]);
@@ -191,17 +198,25 @@ export default function TransactionsScreen() {
                       <Text className="flex-1 text-sm text-gray-800">{transaction.category}</Text>
                       <Text
                         className={`w-20 text-right text-sm ${
-                          transaction.type === "income" ? "text-green-600" : "text-transparent"
+                          normalizeType(transaction.type) === "INCOME"
+                            ? "text-green-600"
+                            : "text-transparent"
                         }`}
                       >
-                        {transaction.type === "income" ? formatCurrency(transaction.amount) : "-"}
+                        {normalizeType(transaction.type) === "INCOME"
+                          ? formatCurrency(transaction.amount)
+                          : "-"}
                       </Text>
                       <Text
                         className={`w-20 text-right text-sm ${
-                          transaction.type === "expense" ? "text-red-600" : "text-transparent"
+                          normalizeType(transaction.type) === "EXPENSE"
+                            ? "text-red-600"
+                            : "text-transparent"
                         }`}
                       >
-                        {transaction.type === "expense" ? formatCurrency(transaction.amount) : "-"}
+                        {normalizeType(transaction.type) === "EXPENSE"
+                          ? formatCurrency(transaction.amount)
+                          : "-"}
                       </Text>
                     </View>
 
