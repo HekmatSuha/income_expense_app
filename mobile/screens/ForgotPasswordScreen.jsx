@@ -17,31 +17,33 @@ import { auth } from "../firebase";
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("");
 
   const handlePasswordReset = async () => {
     if (!email) {
-      Alert.alert(
-        "Email required",
-        "Please enter your email address so we can send you reset instructions."
-      );
+      setMessage("Please enter your email address so we can send you reset instructions.");
+      setMessageType("error");
       return;
     }
 
     try {
       setResetting(true);
+      setMessage("");
       await sendPasswordResetEmail(auth, email.trim());
-      Alert.alert(
-        "Reset email sent",
-        "Check your inbox for a link to reset your password."
-      );
-      navigation.goBack();
+      setMessage("Check your inbox for a link to reset your password.");
+      setMessageType("success");
+      setTimeout(() => {
+        navigation.goBack();
+      }, 3000);
     } catch (err) {
       console.log(err);
-      const message =
+      const displayMessage =
         err?.code === "auth/user-not-found"
           ? "We couldn't find an account with that email address."
           : "We couldn't send the reset email. Please try again later.";
-      Alert.alert("Reset failed", message);
+      setMessage(displayMessage);
+      setMessageType("error");
     } finally {
       setResetting(false);
     }
@@ -70,6 +72,12 @@ export default function ForgotPasswordScreen({ navigation }) {
             value={email}
             onChangeText={setEmail}
           />
+
+          {message && (
+            <Text style={messageType === 'success' ? styles.successMessage : styles.errorMessage}>
+              {message}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[
@@ -164,5 +172,15 @@ const styles = StyleSheet.create({
     color: "#7DD3FC",
     fontSize: 14,
     fontWeight: "500",
+  },
+  successMessage: {
+    color: "#34D399",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  errorMessage: {
+    color: "#F87171",
+    textAlign: "center",
+    marginBottom: 12,
   },
 });
