@@ -12,6 +12,8 @@ import AddExpenseScreen from "./screens/AddExpenseScreen";
 import TransactionsScreen from "./screens/TransactionsScreen";
 import TransferScreen from "./screens/TransferScreen";
 
+import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -22,6 +24,11 @@ export default function App() {
         <Stack.Screen
           name="Register"
           component={RegisterScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen name="Home" component={HomeScreen} />

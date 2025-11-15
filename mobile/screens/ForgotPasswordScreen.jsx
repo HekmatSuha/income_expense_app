@@ -11,30 +11,39 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../firebase";
 
-export default function LoginScreen({ navigation }) {
+export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Missing information", "Please enter your email and password.");
+  const handlePasswordReset = async () => {
+    if (!email) {
+      Alert.alert(
+        "Email required",
+        "Please enter your email address so we can send you reset instructions."
+      );
       return;
     }
 
     try {
-      setLoading(true);
-      await signInWithEmailAndPassword(auth, email, password);
-      navigation.replace("Home");
+      setResetting(true);
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert(
+        "Reset email sent",
+        "Check your inbox for a link to reset your password."
+      );
+      navigation.goBack();
     } catch (err) {
       console.log(err);
-      const message = "Login failed. Please check your credentials.";
-      Alert.alert("Login failed", message);
+      const message =
+        err?.code === "auth/user-not-found"
+          ? "We couldn't find an account with that email address."
+          : "We couldn't send the reset email. Please try again later.";
+      Alert.alert("Reset failed", message);
     } finally {
-      setLoading(false);
+      setResetting(false);
     }
   };
 
@@ -46,14 +55,13 @@ export default function LoginScreen({ navigation }) {
         behavior={Platform.select({ ios: "padding", android: undefined })}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.title}>Forgot Password</Text>
           <Text style={styles.subtitle}>
-            Log in to continue monitoring your spending and savings goals.
+            Enter your email address below to receive password reset instructions.
           </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign in</Text>
           <TextInput
             placeholder="Email"
             placeholderTextColor="#8A8FA6"
@@ -62,44 +70,26 @@ export default function LoginScreen({ navigation }) {
             value={email}
             onChangeText={setEmail}
           />
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor="#8A8FA6"
-            value={password}
-            secureTextEntry
-            style={styles.input}
-            onChangeText={setPassword}
-          />
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("ForgotPassword")}
-            style={styles.tertiaryAction}
-            disabled={loading}
-          >
-            <Text style={styles.tertiaryActionText}>
-              Forgot password?
-            </Text>
-          </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.primaryButton,
-              loading && styles.primaryButtonDisabled,
+              resetting && styles.primaryButtonDisabled,
             ]}
-            onPress={handleLogin}
-            disabled={loading}
+            onPress={handlePasswordReset}
+            disabled={resetting}
           >
             <Text style={styles.primaryButtonText}>
-              {loading ? "Signing in..." : "Log in"}
+              {resetting ? "Sending reset email..." : "Reset Password"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate("Register")}
+            onPress={() => navigation.goBack()}
             style={styles.secondaryAction}
-            disabled={loading}
+            disabled={resetting}
           >
-            <Text style={styles.secondaryActionText}>Need an account? Sign up</Text>
+            <Text style={styles.secondaryActionText}>Back to Login</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -141,12 +131,6 @@ const styles = StyleSheet.create({
     shadowRadius: 32,
     elevation: 12,
   },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#F8FAFC",
-    marginBottom: 16,
-  },
   input: {
     backgroundColor: "#0F172A",
     borderRadius: 14,
@@ -179,15 +163,6 @@ const styles = StyleSheet.create({
   secondaryActionText: {
     color: "#7DD3FC",
     fontSize: 14,
-    fontWeight: "500",
-  },
-  tertiaryAction: {
-    alignSelf: "flex-end",
-    marginBottom: 12,
-  },
-  tertiaryActionText: {
-    color: "#7DD3FC",
-    fontSize: 13,
     fontWeight: "500",
   },
 });
