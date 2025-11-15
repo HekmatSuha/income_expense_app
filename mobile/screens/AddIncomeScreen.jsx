@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { persistTransaction } from "../services/transactionRepository";
+import { getBankAccounts } from "../services/bankAccountRepository";
+import { useFocusEffect } from "@react-navigation/native";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -33,17 +35,41 @@ export default function AddIncomeScreen({ navigation }) {
   const [income, setIncome] = useState("");
   const [category, setCategory] = useState("Salary");
   const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
-  const [account, setAccount] = useState("Personal Account");
+  const [account, setAccount] = useState(null);
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState("14-Nov-2025");
   const [time, setTime] = useState("11:16 PM");
   const [reminder, setReminder] = useState("");
+  const [bankAccounts, setBankAccounts] = useState([]);
 
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
+
+  const loadBankAccounts = useCallback(async () => {
+    try {
+      const accounts = await getBankAccounts();
+      setBankAccounts(accounts);
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch bank accounts", error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBankAccounts();
+    }, [loadBankAccounts])
+  );
 
   const handleSave = useCallback(async () => {
     if (!income) {
       Alert.alert("Missing amount", "Please enter an amount to continue.");
+      return;
+    }
+
+    if (!account) {
+      Alert.alert("Missing account", "Please select an account to continue.");
       return;
     }
 
@@ -53,7 +79,7 @@ export default function AddIncomeScreen({ navigation }) {
       category,
       note: notes,
       paymentMethod,
-      paymentAccount: account,
+      paymentAccount: account.name,
       recurring: reminder,
       time,
       createdAt: parseDateTimeToISO(date, time),
@@ -172,11 +198,9 @@ export default function AddIncomeScreen({ navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Account</Text>
             <TouchableOpacity activeOpacity={0.8} style={styles.rowCard}>
-              <TextInput
-                value={account}
-                onChangeText={setAccount}
-                style={styles.rowCardInput}
-              />
+              <Text style={styles.rowCardInput}>
+                {account ? account.name : "Select account"}
+              </Text>
               <MaterialIcons name="account-balance" size={22} color="#0288D1" />
             </TouchableOpacity>
           </View>
