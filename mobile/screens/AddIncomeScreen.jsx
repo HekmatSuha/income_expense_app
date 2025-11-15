@@ -29,10 +29,10 @@ const buildDateLabel = (value) => {
   return value;
 };
 
-export default function AddExpenseScreen({ navigation }) {
-  const [expense, setExpense] = useState("");
-  const [category, setCategory] = useState("Air Tickets");
-  const [paymentMethod, setPaymentMethod] = useState("Cash");
+export default function AddIncomeScreen({ navigation }) {
+  const [income, setIncome] = useState("");
+  const [category, setCategory] = useState("Salary");
+  const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
   const [account, setAccount] = useState("Personal Account");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState("14-Nov-2025");
@@ -42,14 +42,14 @@ export default function AddExpenseScreen({ navigation }) {
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
 
   const handleSave = useCallback(async () => {
-    if (!expense) {
+    if (!income) {
       Alert.alert("Missing amount", "Please enter an amount to continue.");
       return;
     }
 
     const payload = {
-      amount: Number(expense),
-      type: "EXPENSE",
+      amount: Number(income),
+      type: "INCOME",
       category,
       note: notes,
       paymentMethod,
@@ -65,7 +65,7 @@ export default function AddExpenseScreen({ navigation }) {
       if (result.status === "local-only") {
         Alert.alert(
           "Saved locally",
-          "Sign in to sync this expense with your account."
+          "Sign in to sync this income with your account."
         );
         navigation.goBack();
         return;
@@ -74,7 +74,7 @@ export default function AddExpenseScreen({ navigation }) {
       if (result.status === "offline-fallback") {
         Alert.alert(
           "Saved offline",
-          "We'll sync this expense with your account once you're back online."
+          "We'll sync this income with your account once you're back online."
         );
         navigation.goBack();
         return;
@@ -82,17 +82,17 @@ export default function AddExpenseScreen({ navigation }) {
 
       navigation.goBack();
     } catch (error) {
-      console.error("Failed to save expense", error);
+      console.error("Failed to save income", error);
       Alert.alert(
         "Error",
-        "Unable to save the expense at the moment. Please try again."
+        "Unable to save the income at the moment. Please try again."
       );
     }
   }, [
     account,
     category,
     date,
-    expense,
+    income,
     navigation,
     notes,
     paymentMethod,
@@ -113,7 +113,7 @@ export default function AddExpenseScreen({ navigation }) {
             <MaterialIcons name="arrow-back" size={26} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerTitleWrapper}>
-            <Text style={styles.headerTitle}>Add Expense</Text>
+            <Text style={styles.headerTitle}>Add Income</Text>
             <MaterialIcons name="expand-more" size={22} color="#FFFFFF" />
           </View>
         </View>
@@ -123,11 +123,11 @@ export default function AddExpenseScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            <Text style={styles.expenseLabel}>Expense</Text>
+            <Text style={styles.incomeLabel}>Income</Text>
             <View style={styles.inputWithIcon}>
               <TextInput
-                value={expense}
-                onChangeText={setExpense}
+                value={income}
+                onChangeText={setIncome}
                 placeholder="Enter amount"
                 keyboardType="numeric"
                 style={styles.textInput}
@@ -141,7 +141,7 @@ export default function AddExpenseScreen({ navigation }) {
             <Text style={styles.sectionLabel}>Category</Text>
             <TouchableOpacity activeOpacity={0.8} style={styles.rowCard}>
               <View style={styles.rowCardIcon}>
-                <MaterialIcons name="flight" size={22} color="#4B5563" />
+                <MaterialIcons name="work" size={22} color="#4B5563" />
               </View>
               <TextInput
                 value={category}
@@ -301,8 +301,8 @@ const styles = StyleSheet.create({
   section: {
     gap: 8,
   },
-  expenseLabel: {
-    color: "#DC2626",
+  incomeLabel: {
+    color: "#16A34A",
     fontWeight: "600",
     fontSize: 14,
   },
