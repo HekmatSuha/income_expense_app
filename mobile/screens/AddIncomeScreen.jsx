@@ -50,7 +50,6 @@ export default function AddIncomeScreen({ navigation }) {
   const [paymentMethods, setPaymentMethods] = useState(['Cash', 'Bank']);
   const [isPaymentMethodPickerVisible, setPaymentMethodPickerVisible] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
-  const [isIncomeInputFocused, setIsIncomeInputFocused] = useState(false); // New state
 
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
 
@@ -93,6 +92,42 @@ export default function AddIncomeScreen({ navigation }) {
 
     setIncome(formattedText);
   };
+
+  const handleAddCategory = useCallback(() => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) {
+      Alert.alert("Missing category", "Please enter a category name.");
+      return;
+    }
+
+    setCategories((prev) => {
+      if (prev.includes(trimmed)) {
+        return prev;
+      }
+      return [...prev, trimmed];
+    });
+    setCategory(trimmed);
+    setNewCategory("");
+    setCategoryPickerVisible(false);
+  }, [newCategory]);
+
+  const handleAddPaymentMethod = useCallback(() => {
+    const trimmed = newPaymentMethod.trim();
+    if (!trimmed) {
+      Alert.alert("Missing payment method", "Please enter a payment method name.");
+      return;
+    }
+
+    setPaymentMethods((prev) => {
+      if (prev.includes(trimmed)) {
+        return prev;
+      }
+      return [...prev, trimmed];
+    });
+    setPaymentMethod(trimmed);
+    setNewPaymentMethod("");
+    setPaymentMethodPickerVisible(false);
+  }, [newPaymentMethod]);
 
   const handleSave = useCallback(async () => {
     if (!income) {
@@ -183,10 +218,7 @@ export default function AddIncomeScreen({ navigation }) {
         >
           <View style={styles.section}>
             <Text style={styles.incomeLabel}>Income</Text>
-            <View style={[
-              styles.inputWithIcon,
-              isIncomeInputFocused && styles.inputWithIconFocused // Apply focused style
-            ]}>
+            <View style={styles.inputWithIcon}>
               <TextInput
                 value={income}
                 onChangeText={handleIncomeChange} // Use new handler
@@ -194,8 +226,7 @@ export default function AddIncomeScreen({ navigation }) {
                 keyboardType="numeric"
                 style={styles.textInput}
                 placeholderTextColor="#9CA3AF"
-                onFocus={() => setIsIncomeInputFocused(true)} // Set focus state
-                onBlur={() => setIsIncomeInputFocused(false)}   // Unset focus state
+                underlineColorAndroid="transparent"
               />
               <MaterialIcons name="calculate" size={22} color="#0288D1" />
             </View>
@@ -479,6 +510,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#111827",
     paddingVertical: 0,
+    borderWidth: 0,
+    borderColor: "transparent",
+    backgroundColor: "transparent",
   },
   notesInput: {
     height: 52,
@@ -630,9 +664,5 @@ const styles = StyleSheet.create({
   modalAddButtonText: {
     color: 'white',
     fontWeight: 'bold',
-  },
-  inputWithIconFocused: {
-    borderColor: '#0288D1', // Example: change border color on focus
-    borderWidth: 2, // Example: make border thicker on focus
   },
 });
