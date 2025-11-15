@@ -11,13 +11,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -35,6 +36,34 @@ export default function LoginScreen({ navigation }) {
       Alert.alert("Login failed", message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      Alert.alert(
+        "Email required",
+        "Please enter your email address so we can send you reset instructions."
+      );
+      return;
+    }
+
+    try {
+      setResetting(true);
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert(
+        "Reset email sent",
+        "Check your inbox for a link to reset your password."
+      );
+    } catch (err) {
+      console.log(err);
+      const message =
+        err?.code === "auth/user-not-found"
+          ? "We couldn't find an account with that email address."
+          : "We couldn't send the reset email. Please try again later.";
+      Alert.alert("Reset failed", message);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -72,9 +101,22 @@ export default function LoginScreen({ navigation }) {
           />
 
           <TouchableOpacity
-            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+            onPress={handlePasswordReset}
+            style={styles.tertiaryAction}
+            disabled={loading || resetting}
+          >
+            <Text style={styles.tertiaryActionText}>
+              {resetting ? "Sending reset email..." : "Forgot password?"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              (loading || resetting) && styles.primaryButtonDisabled,
+            ]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || resetting}
           >
             <Text style={styles.primaryButtonText}>
               {loading ? "Signing in..." : "Log in"}
@@ -166,6 +208,15 @@ const styles = StyleSheet.create({
   secondaryActionText: {
     color: "#7DD3FC",
     fontSize: 14,
+    fontWeight: "500",
+  },
+  tertiaryAction: {
+    alignSelf: "flex-end",
+    marginBottom: 12,
+  },
+  tertiaryActionText: {
+    color: "#7DD3FC",
+    fontSize: 13,
     fontWeight: "500",
   },
 });
