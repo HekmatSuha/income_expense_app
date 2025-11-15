@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView as RNSafeAreaView,
   ScrollView as RNScrollView,
@@ -9,7 +10,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import Navigation from "../components/Navigation";
 
@@ -84,16 +85,35 @@ const getAmountClass = (type) => {
 export default function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const unsubscribeRef = useRef(null);
 
-  const loadData = useCallback(() => {
+  const createUserTransactionsQuery = useCallback(() => {
     const user = auth.currentUser;
     if (!user) {
-      setTransactions([]);
-      return;
+      return null;
     }
 
-    const q = query(collection(db, "transactions"), where("userId", "==", user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    return query(collection(db, "transactions"), where("userId", "==", user.uid));
+  }, []);
+
+  const loadData = useCallback(() => {
+    const transactionsQuery = createUserTransactionsQuery();
+
+    if (!transactionsQuery) {
+      setTransactions([]);
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+      return null;
+    }
+
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+
+    const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
       const transactionsData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -101,38 +121,44 @@ export default function HomeScreen({ navigation }) {
       setTransactions(transactionsData);
     });
 
+    unsubscribeRef.current = unsubscribe;
     return unsubscribe;
-  }, []);
+  }, [createUserTransactionsQuery]);
 
-  useEffect(() => {
-    const unsubscribe = loadData();
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
-      const unsub = loadData();
       return () => {
-        if (unsub) {
-          unsub();
+        if (unsubscribeRef.current) {
+          unsubscribeRef.current();
+          unsubscribeRef.current = null;
         }
       };
-    });
-    return unsubscribe;
-  }, [navigation, loadData]);
+    }, [loadData])
+  );
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    const unsubscribe = loadData();
-    setRefreshing(false);
-    if (unsubscribe) {
-      unsubscribe();
+    try {
+      const transactionsQuery = createUserTransactionsQuery();
+      if (!transactionsQuery) {
+        setTransactions([]);
+        return;
+      }
+
+      const snapshot = await getDocs(transactionsQuery);
+      const transactionsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setTransactions(transactionsData);
+    } catch (error) {
+      console.error("Failed to refresh transactions", error);
+    } finally {
+      setRefreshing(false);
     }
-  }, [loadData]);
+  }, [createUserTransactionsQuery]);
 
   const { incomeTotal, expenseTotal } = useMemo(() => {
     return transactions.reduce(
