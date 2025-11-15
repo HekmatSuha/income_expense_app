@@ -10,7 +10,8 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
-import api from "../src/api/client";
+import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import Navigation from "../components/Navigation";
 
 const SafeAreaView = styled(RNSafeAreaView);
@@ -41,8 +42,21 @@ export default function BankAccountsScreen({ navigation }) {
     setLoading(true);
     setFetchError("");
     try {
-      const response = await api.get("/bank-accounts/");
-      const data = Array.isArray(response.data) ? response.data : [];
+      const user = auth.currentUser;
+      if (!user) {
+        setAccounts([]);
+        return;
+      }
+
+      const accountsQuery = query(
+        collection(db, "bankAccounts"),
+        where("userId", "==", user.uid)
+      );
+      const snapshot = await getDocs(accountsQuery);
+      const data = snapshot.docs.map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      }));
       setAccounts(data);
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
@@ -76,19 +90,31 @@ export default function BankAccountsScreen({ navigation }) {
     setFormError("");
 
     try {
-      const response = await api.post("/bank-accounts/", {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("auth/not-authenticated");
+      }
+
+      const accountPayload = {
         name: trimmedName,
         type: trimmedType,
         balance: parsedBalance,
-      });
+        userId: user.uid,
+      };
 
-      setAccounts((prev) => [response.data, ...prev]);
+      const docRef = await addDoc(collection(db, "bankAccounts"), accountPayload);
+
+      setAccounts((prev) => [{ id: docRef.id, ...accountPayload }, ...prev]);
       setName("");
       setType("");
       setBalance("");
     } catch (error) {
       console.error("Failed to create bank account", error);
-      setFormError("Unable to add bank account. Please try again.");
+      if (error.message === "auth/not-authenticated") {
+        setFormError("You must be logged in to add a bank account.");
+      } else {
+        setFormError("Unable to add bank account. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }

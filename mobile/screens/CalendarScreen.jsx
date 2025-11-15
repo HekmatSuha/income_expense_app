@@ -9,7 +9,8 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
 import Navigation from "../components/Navigation";
-import api from "../src/api/client";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -85,8 +86,19 @@ export default function CalendarScreen({ navigation }) {
 
   const loadTransactions = useCallback(async () => {
     try {
-      const res = await api.get("/transactions/");
-      setTransactions(Array.isArray(res.data) ? res.data : []);
+      const user = auth.currentUser;
+      if (!user) {
+        setTransactions([]);
+        return;
+      }
+
+      const transactionsQuery = query(
+        collection(db, "transactions"),
+        where("userId", "==", user.uid)
+      );
+      const snapshot = await getDocs(transactionsQuery);
+      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setTransactions(data);
     } catch (error) {
       console.error("Failed to fetch transactions", error);
     }
