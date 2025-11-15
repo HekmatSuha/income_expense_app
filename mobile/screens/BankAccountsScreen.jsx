@@ -20,8 +20,20 @@ const Text = styled(RNText);
 const TextInput = styled(RNTextInput);
 const TouchableOpacity = styled(RNTouchableOpacity);
 
-function formatCurrency(value) {
+import { currencies } from "../constants/currencies";
+import { Modal, FlatList } from "react-native";
+
+const SafeAreaView = styled(RNSafeAreaView);
+const ScrollView = styled(RNScrollView);
+const View = styled(RNView);
+const Text = styled(RNText);
+const TextInput = styled(RNTextInput);
+const TouchableOpacity = styled(RNTouchableOpacity);
+
+function formatCurrency(value, currency) {
   return (Number(value) || 0).toLocaleString(undefined, {
+    style: "currency",
+    currency: currency || "USD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -32,6 +44,8 @@ export default function BankAccountsScreen({ navigation }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [balance, setBalance] = useState("");
+  const [currency, setCurrency] = useState(currencies[0]);
+  const [isCurrencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [formError, setFormError] = useState("");
@@ -79,6 +93,7 @@ export default function BankAccountsScreen({ navigation }) {
         name: trimmedName,
         type: trimmedType,
         balance: parsedBalance,
+        currency: currency.value,
       };
 
       const newAccount = await addBankAccount(accountPayload);
@@ -97,7 +112,7 @@ export default function BankAccountsScreen({ navigation }) {
     } finally {
       setSubmitting(false);
     }
-  }, [balance, name, type]);
+  }, [balance, name, type, currency]);
 
   const handleTabChange = (tab) => {
     if (tab === "bankAccounts") {
@@ -105,9 +120,6 @@ export default function BankAccountsScreen({ navigation }) {
     }
     if (tab === "home") {
       navigation.navigate("Home");
-    }
-    if (tab === "calendar") {
-      navigation.navigate("Calendar");
     }
     if (tab === "notebook") {
       navigation.navigate("Notebook");
@@ -126,7 +138,7 @@ export default function BankAccountsScreen({ navigation }) {
         <View className="mt-4">
           <Text className="text-white text-sm">Total balance</Text>
           <Text className="text-white text-2xl font-bold mt-1">
-            ${formatCurrency(totalBalance)}
+            {formatCurrency(totalBalance, accounts[0]?.currency)}
           </Text>
         </View>
       </View>
@@ -171,6 +183,15 @@ export default function BankAccountsScreen({ navigation }) {
                   keyboardType="decimal-pad"
                   className="bg-brand-input rounded-xl px-4 py-3 text-base"
                 />
+              </View>
+              <View>
+                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Currency</Text>
+                <TouchableOpacity
+                  onPress={() => setCurrencyPickerVisible(true)}
+                  className="bg-brand-input rounded-xl px-4 py-3"
+                >
+                  <Text className="text-base">{currency.label}</Text>
+                </TouchableOpacity>
               </View>
               {formError ? (
                 <Text className="text-sm text-brand-error">{formError}</Text>
@@ -228,7 +249,7 @@ export default function BankAccountsScreen({ navigation }) {
                     </View>
                     <View className="items-end">
                       <Text className="text-lg font-bold text-brand-sky">
-                        ${formatCurrency(account.balance)}
+                        {formatCurrency(account.balance, account.currency)}
                       </Text>
                     </View>
                   </View>
@@ -238,6 +259,32 @@ export default function BankAccountsScreen({ navigation }) {
           </View>
         </View>
       </ScrollView>
+      <Modal
+        visible={isCurrencyPickerVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCurrencyPickerVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-2xl w-11/12 max-h-3/4">
+            <FlatList
+              data={currencies}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setCurrency(item);
+                    setCurrencyPickerVisible(false);
+                  }}
+                  className="p-4 border-b border-gray-200"
+                >
+                  <Text>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
