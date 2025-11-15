@@ -21,22 +21,25 @@ export default function RegisterScreen({ navigation }) {
     confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleRegister = async () => {
+    setError("");
+
     if (!form.email || !form.password) {
-      Alert.alert("Missing information", "Email and password are required.");
+      setError("Email and password are required.");
       return;
     }
     if (form.password.length < 8) {
-      Alert.alert("Weak password", "Password must be at least 8 characters long.");
+      setError("Password must be at least 8 characters long.");
       return;
     }
     if (form.password !== form.confirmPassword) {
-      Alert.alert("Passwords do not match", "Please confirm your password.");
+      setError("Passwords do not match. Please confirm your password.");
       return;
     }
 
@@ -50,8 +53,17 @@ export default function RegisterScreen({ navigation }) {
         },
       ]);
     } catch (err) {
-      const message = "Unable to register. Please try again.";
-      Alert.alert("Registration failed", message);
+      let message = "Unable to register. Please try again.";
+
+      if (err?.code === "auth/email-already-in-use") {
+        message = "An account with that email already exists. Try logging in instead.";
+      } else if (err?.code === "auth/invalid-email") {
+        message = "That email address looks invalid. Please check and try again.";
+      } else if (err?.code === "auth/weak-password") {
+        message = "Password must be at least 8 characters long.";
+      }
+
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -99,6 +111,8 @@ export default function RegisterScreen({ navigation }) {
             onChangeText={(value) => updateField("confirmPassword", value)}
           />
 
+          {!!error && <Text style={styles.errorText}>{error}</Text>}
+
           <TouchableOpacity
             style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
             onPress={handleRegister}
@@ -126,6 +140,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#111827",
+  },
+  errorText: {
+    color: "#F87171",
+    marginBottom: 4,
+    fontSize: 14,
   },
   container: {
     flex: 1,
