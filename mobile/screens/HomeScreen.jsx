@@ -31,8 +31,7 @@ const quickActions = [
     label: "Add Expense",
     icon: "remove-circle-outline",
     colorClass: "bg-expense",
-    route: "AddTransaction",
-    params: { type: "EXPENSE" },
+    route: "AddExpense",
   },
   {
     label: "Transfer",
