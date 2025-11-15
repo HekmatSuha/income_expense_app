@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   SafeAreaView as RNSafeAreaView,
   ScrollView as RNScrollView,
@@ -9,56 +9,14 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
 const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
-
-const mockTransactions = [
-  {
-    id: "1",
-    date: "Fri, 14 Nov 2025",
-    time: "11:43 AM",
-    category: "Pension",
-    amount: 2500,
-    type: "income",
-    balance: 140500,
-    paymentMethod: "Kaspi",
-  },
-  {
-    id: "2",
-    date: "Sun, 12 Oct 2025",
-    time: "11:40 PM",
-    category: "Air Tickets",
-    amount: 2000,
-    type: "expense",
-    balance: 138000,
-    paymentMethod: "Card",
-  },
-  {
-    id: "3",
-    date: "Sun, 12 Oct 2025",
-    time: "11:39 PM",
-    category: "Allowance",
-    amount: 120000,
-    type: "income",
-    balance: 140000,
-    paymentMethod: "Cash",
-  },
-  {
-    id: "4",
-    date: "Sun, 12 Oct 2025",
-    time: "11:38 PM",
-    category: "Allowance",
-    amount: 20000,
-    type: "income",
-    balance: 20000,
-    paymentMethod: "Cash",
-    note: "From Ahmad",
-  },
-];
 
 const timeFilters = ["All", "Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -70,21 +28,76 @@ const formatCurrency = (value) => {
 export default function TransactionsScreen() {
   const navigation = useNavigation();
   const [activeFilter, setActiveFilter] = useState("All");
+  const [transactions, setTransactions] = useState([]);
+  const uid = auth.currentUser?.uid;
+
+  useEffect(() => {
+    if (!uid) {
+      setTransactions([]);
+      return undefined;
+    }
+
+    const transactionsQuery = query(
+      collection(db, "transactions"),
+      where("userId", "==", uid)
+    );
+
+    const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setTransactions(items);
+    });
+
+    return () => unsubscribe();
+  }, [uid]);
+
+  const formatDateTime = useCallback((value) => {
+    if (!value) {
+      return { date: "-", time: "" };
+    }
+
+    let dateValue = value;
+
+    if (typeof value?.toDate === "function") {
+      dateValue = value.toDate();
+    } else if (typeof value === "string") {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        dateValue = parsed;
+      }
+    }
+
+    if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) {
+      return { date: "-", time: "" };
+    }
+
+    const date = dateValue.toLocaleDateString(undefined, {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const time = dateValue.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    return { date, time };
+  }, []);
 
   const totalIncome = useMemo(
     () =>
-      mockTransactions
+      transactions
         .filter((transaction) => transaction.type === "income")
-        .reduce((sum, transaction) => sum + transaction.amount, 0),
-    []
+        .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0),
+    [transactions]
   );
 
   const totalExpense = useMemo(
     () =>
-      mockTransactions
+      transactions
         .filter((transaction) => transaction.type === "expense")
-        .reduce((sum, transaction) => sum + transaction.amount, 0),
-    []
+        .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0),
+    [transactions]
   );
 
   const balance = useMemo(() => totalIncome - totalExpense, [totalIncome, totalExpense]);
@@ -165,14 +178,15 @@ export default function TransactionsScreen() {
                 <Text className="w-20 text-right text-xs font-semibold text-red-600">Expense</Text>
               </View>
 
-              {mockTransactions.map((transaction, index) => {
-                const isLast = index === mockTransactions.length - 1;
+              {transactions.map((transaction, index) => {
+                const isLast = index === transactions.length - 1;
+                const { date, time } = formatDateTime(transaction.date ?? transaction.createdAt);
                 return (
                   <View key={transaction.id} className={`${!isLast ? "border-b border-gray-200" : ""}`}>
                     <View className="flex-row items-start px-4 py-4 gap-3">
                       <View className="flex-1">
-                        <Text className="text-sm text-gray-800">{transaction.date}</Text>
-                        <Text className="text-xs text-gray-500 mt-1">{transaction.time}</Text>
+                        <Text className="text-sm text-gray-800">{date}</Text>
+                        <Text className="text-xs text-gray-500 mt-1">{time}</Text>
                       </View>
                       <Text className="flex-1 text-sm text-gray-800">{transaction.category}</Text>
                       <Text
@@ -204,9 +218,6 @@ export default function TransactionsScreen() {
                           <Text className="text-xs text-gray-500">{transaction.note}</Text>
                         ) : null}
                       </View>
-                      <Text className="text-xs text-gray-500">
-                        Balance {formatCurrency(transaction.balance)}
-                      </Text>
                     </View>
                   </View>
                 );
