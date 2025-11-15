@@ -37,8 +37,7 @@ const quickActions = [
     label: "Transfer",
     icon: "swap-horiz",
     colorClass: "bg-transfer",
-    route: "AddTransaction",
-    params: { type: "TRANSFER" },
+    route: "Transfer",
   },
   {
     label: "Transactions",

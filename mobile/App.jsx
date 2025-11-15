@@ -10,6 +10,7 @@ import NotebookScreen from "./screens/NotebookScreen";
 import BankAccountsScreen from "./screens/BankAccountsScreen";
 import AddExpenseScreen from "./screens/AddExpenseScreen";
 import TransactionsScreen from "./screens/TransactionsScreen";
+import TransferScreen from "./screens/TransferScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,11 @@ export default function App() {
         <Stack.Screen
           name="AddExpense"
           component={AddExpenseScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Transfer"
+          component={TransferScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
