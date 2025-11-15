@@ -11,7 +11,16 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
-import api from "../src/api/client";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { auth, db } from "../firebase";
 import Navigation from "../components/Navigation";
 
 const SafeAreaView = styled(RNSafeAreaView);
@@ -186,8 +195,21 @@ export default function NotebookScreen({ navigation }) {
       setFetchError("");
       setActionError("");
       try {
-        const response = await api.get("/notes/");
-        const data = Array.isArray(response.data) ? response.data : [];
+        const user = auth.currentUser;
+        if (!user) {
+          setNotes([]);
+          return;
+        }
+
+        const notesQuery = query(
+          collection(db, "notes"),
+          where("userId", "==", user.uid)
+        );
+        const snapshot = await getDocs(notesQuery);
+        const data = snapshot.docs.map((docSnapshot) => ({
+          id: docSnapshot.id,
+          ...docSnapshot.data(),
+        }));
         setNotes(sortNotesList(data));
       } catch (error) {
         console.error("Failed to fetch notes", error);
@@ -272,22 +294,37 @@ export default function NotebookScreen({ navigation }) {
     setNotes((prev) => sortNotesList([optimisticNote, ...prev]));
 
     try {
-      const response = await api.post("/notes/", {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("auth/not-authenticated");
+      }
+
+      const notePayload = {
         text: trimmedText,
         date: newNoteDate,
         frequency: newNoteFrequency,
-      });
+        completed: false,
+        userId: user.uid,
+      };
+
+      const docRef = await addDoc(collection(db, "notes"), notePayload);
 
       setNotes((prev) =>
         sortNotesList(
-          prev.map((note) => (note.id === tempId ? response.data : note))
+          prev.map((note) =>
+            note.id === tempId ? { id: docRef.id, ...notePayload } : note
+          )
         )
       );
       resetNoteForm();
       setShowCreateForm(false);
     } catch (error) {
       console.error("Failed to create note", error);
-      setCreateError("Unable to create note. Please try again.");
+      if (error.message === "auth/not-authenticated") {
+        setCreateError("You must be logged in to create notes.");
+      } else {
+        setCreateError("Unable to create note. Please try again.");
+      }
       setNotes((prev) => prev.filter((note) => note.id !== tempId));
     } finally {
       setCreating(false);
@@ -327,16 +364,21 @@ export default function NotebookScreen({ navigation }) {
       );
 
       try {
-        const response = await api.patch(`/notes/${id}/`, {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error("auth/not-authenticated");
+        }
+
+        await updateDoc(doc(db, "notes", id), {
           completed: optimisticNote.completed,
         });
-
-        setNotes((prev) =>
-          sortNotesList(prev.map((note) => (note.id === id ? response.data : note)))
-        );
       } catch (error) {
         console.error("Failed to toggle note", error);
-        setActionError("Unable to update note. Please try again.");
+        if (error.message === "auth/not-authenticated") {
+          setActionError("You must be logged in to update notes.");
+        } else {
+          setActionError("Unable to update note. Please try again.");
+        }
         setNotes((prev) =>
           sortNotesList(prev.map((note) => (note.id === id ? existingNote : note)))
         );
