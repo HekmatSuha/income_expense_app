@@ -12,6 +12,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { addDoc, collection } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { LOCAL_USER_ID, saveTransactionForUser } from "../storage/transactions";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -48,36 +49,81 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        Alert.alert("Not authenticated", "You must be logged in to add an expense.");
-        return;
+    const user = auth.currentUser;
+    const targetUserId = user?.uid || LOCAL_USER_ID;
+    const payload = {
+      amount: Number(expense),
+      type: "EXPENSE",
+      category,
+      note: notes,
+      paymentMethod,
+      paymentAccount: account,
+      recurring: reminder,
+      time,
+      date: parseDateTimeToISO(date, time),
+      createdAt: new Date().toISOString(),
+    };
+
+    const persistLocally = async () => {
+      try {
+        await saveTransactionForUser(targetUserId, payload);
+        return true;
+      } catch (storageError) {
+        console.error("Failed to store expense locally", storageError);
+        Alert.alert(
+          "Storage error",
+          "We couldn't save the expense on this device. Please try again."
+        );
+        return false;
       }
+    };
 
+    if (!user) {
+      const saved = await persistLocally();
+      if (saved) {
+        Alert.alert(
+          "Saved locally",
+          "Sign in to sync this expense with your account."
+        );
+        navigation.goBack();
+      }
+      return;
+    }
+
+    try {
       await addDoc(collection(db, "transactions"), {
-        amount: Number(expense),
-        type: "EXPENSE",
-        category,
-        note: notes,
-        paymentMethod,
-        paymentAccount: account,
-        recurring: reminder,
-        time,
-        date: parseDateTimeToISO(date, time),
+        ...payload,
         userId: user.uid,
-        createdAt: new Date().toISOString(),
       });
-
+      await persistLocally();
       navigation.goBack();
     } catch (error) {
       console.error("Failed to save expense", error);
-      Alert.alert(
-        "Error",
-        "Unable to save the expense at the moment. Please try again."
-      );
+      const saved = await persistLocally();
+      if (saved) {
+        Alert.alert(
+          "Saved offline",
+          "We stored the expense locally and will keep it available on this device."
+        );
+        navigation.goBack();
+      } else {
+        Alert.alert(
+          "Error",
+          "Unable to save the expense at the moment. Please try again."
+        );
+      }
     }
-  }, [account, category, date, expense, navigation, notes, paymentMethod, reminder, time]);
+  }, [
+    account,
+    category,
+    date,
+    expense,
+    navigation,
+    notes,
+    paymentMethod,
+    reminder,
+    time,
+  ]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
