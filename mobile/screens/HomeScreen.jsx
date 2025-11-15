@@ -33,8 +33,7 @@ const quickActions = [
     label: "Add Income",
     icon: "add-circle-outline",
     colorClass: "bg-income",
-    route: "AddTransaction",
-    params: { type: "INCOME" },
+    route: "AddIncome",
   },
   {
     label: "Add Expense",
