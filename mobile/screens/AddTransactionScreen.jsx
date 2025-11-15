@@ -39,13 +39,55 @@ export default function AddTransactionScreen({ navigation, route }) {
   useEffect(() => {
     if (route?.params?.type) {
       setType(route.params.type);
-      if (route.params.type === "INCOME") {
-        setCategory("Allowance");
-      }
     }
   }, [route?.params?.type]);
 
-  const isIncome = useMemo(() => type === "INCOME", [type]);
+  const typeConfig = useMemo(() => {
+    switch (type) {
+      case "INCOME":
+        return {
+          title: "Add Income",
+          headerColor: "#2563EB",
+          accentColor: "#2563EB",
+          emoji: "👋",
+          defaultCategory: "Allowance",
+          typeLabel: "Income",
+        };
+      case "EXPENSE":
+        return {
+          title: "Add Expense",
+          headerColor: "#DC2626",
+          accentColor: "#DC2626",
+          emoji: "🍽️",
+          defaultCategory: "Food",
+          typeLabel: "Expense",
+        };
+      default:
+        return {
+          title: "Add Transaction",
+          headerColor: "#2563EB",
+          accentColor: "#2563EB",
+          emoji: "💳",
+          defaultCategory: "General",
+          typeLabel: "Transaction",
+        };
+    }
+  }, [type]);
+
+  useEffect(() => {
+    setCategory((prevCategory) => {
+      if (!prevCategory) {
+        return typeConfig.defaultCategory;
+      }
+      if (type === "INCOME" && prevCategory === "Food") {
+        return typeConfig.defaultCategory;
+      }
+      if (type === "EXPENSE" && prevCategory === "Allowance") {
+        return typeConfig.defaultCategory;
+      }
+      return prevCategory;
+    });
+  }, [type, typeConfig.defaultCategory]);
 
   const handleSave = async () => {
     if (!amount) {
@@ -64,8 +106,13 @@ export default function AddTransactionScreen({ navigation, route }) {
         type,
         category,
         note: notes,
+        paymentMethod,
+        paymentAccount,
+        recurring,
+        time,
         date: parseDateTimeToISO(date, time),
         userId: user.uid,
+        createdAt: new Date().toISOString(),
       });
       navigation.goBack();
     } catch (error) {
@@ -77,12 +124,12 @@ export default function AddTransactionScreen({ navigation, route }) {
     }
   };
 
-  if (!isIncome) {
+  if (type !== "INCOME" && type !== "EXPENSE") {
     return (
       <SafeAreaView style={styles.basicContainer}>
         <ScrollView contentContainerStyle={styles.basicContent}>
           <Text style={styles.basicTitle}>
-            {type === "EXPENSE" ? "Add Expense" : "Add Transaction"}
+            {typeConfig.title}
           </Text>
           <TextInput
             placeholder="Amount"
@@ -116,7 +163,7 @@ export default function AddTransactionScreen({ navigation, route }) {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
-          <View style={styles.header}>
+          <View style={[styles.header, { backgroundColor: typeConfig.headerColor }]}>
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="Go back"
@@ -126,13 +173,15 @@ export default function AddTransactionScreen({ navigation, route }) {
               <MaterialIcons name="chevron-left" size={28} color="#FFFFFF" />
             </TouchableOpacity>
             <View style={styles.headerTitleWrapper}>
-              <Text style={styles.headerTitle}>Add Income</Text>
+              <Text style={styles.headerTitle}>{typeConfig.title}</Text>
               <MaterialIcons name="expand-more" size={24} color="#FFFFFF" />
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Income</Text>
+            <Text style={[styles.label, { color: typeConfig.accentColor }]}>
+              {typeConfig.typeLabel}
+            </Text>
             <View style={styles.inputWrapper}>
               <TextInput
                 placeholder="0"
@@ -144,55 +193,68 @@ export default function AddTransactionScreen({ navigation, route }) {
               <MaterialIcons
                 name="calculate"
                 size={22}
-                color="#2563EB"
+                color={typeConfig.accentColor}
                 style={styles.inputIcon}
               />
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Category</Text>
+            <Text style={[styles.label, { color: typeConfig.accentColor }]}>Category</Text>
             <View style={styles.selectButton}>
               <View style={styles.selectContent}>
-                <Text style={styles.emoji}>👋</Text>
+                <Text style={styles.emoji}>{typeConfig.emoji}</Text>
                 <TextInput
                   value={category}
                   onChangeText={setCategory}
                   style={styles.selectInput}
                 />
               </View>
-              <MaterialIcons name="account-balance-wallet" size={22} color="#2563EB" />
+              <MaterialIcons
+                name="account-balance-wallet"
+                size={22}
+                color={typeConfig.accentColor}
+              />
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Payment Method</Text>
+            <Text style={[styles.label, { color: typeConfig.accentColor }]}>Payment Method</Text>
             <View style={styles.selectButton}>
               <TextInput
                 value={paymentMethod}
                 onChangeText={setPaymentMethod}
                 style={styles.selectInput}
               />
-              <View style={styles.methodIconWrapper}>
+              <View
+                style={[
+                  styles.methodIconWrapper,
+                  { backgroundColor: typeConfig.accentColor },
+                ]}
+              >
                 <View style={styles.methodIcon} />
               </View>
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Payment Account</Text>
+            <Text style={[styles.label, { color: typeConfig.accentColor }]}>Payment Account</Text>
             <View style={styles.selectButton}>
               <TextInput
                 value={paymentAccount}
                 onChangeText={setPaymentAccount}
                 style={styles.selectInput}
               />
-              <MaterialIcons name="account-balance" size={22} color="#2563EB" />
+              <MaterialIcons
+                name="account-balance"
+                size={22}
+                color={typeConfig.accentColor}
+              />
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Notes</Text>
+            <Text style={[styles.label, { color: typeConfig.accentColor }]}>Notes</Text>
             <View style={styles.inputWrapper}>
               <MaterialIcons
                 name="mic"
@@ -212,11 +274,19 @@ export default function AddTransactionScreen({ navigation, route }) {
 
           <View style={styles.gridRow}>
             <TouchableOpacity style={styles.secondaryButton}>
-              <MaterialIcons name="photo-camera" size={22} color="#2563EB" />
+              <MaterialIcons
+                name="photo-camera"
+                size={22}
+                color={typeConfig.accentColor}
+              />
               <Text style={styles.secondaryButtonText}>Add Bills</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton}>
-              <MaterialIcons name="format-list-bulleted" size={22} color="#2563EB" />
+              <MaterialIcons
+                name="format-list-bulleted"
+                size={22}
+                color={typeConfig.accentColor}
+              />
               <Text style={styles.secondaryButtonText}>Add Items</Text>
             </TouchableOpacity>
           </View>
@@ -242,7 +312,11 @@ export default function AddTransactionScreen({ navigation, route }) {
                   <MaterialIcons name="chevron-right" size={20} color="#111827" />
                 </TouchableOpacity>
               </View>
-              <MaterialIcons name="calendar-today" size={22} color="#2563EB" />
+              <MaterialIcons
+                name="calendar-today"
+                size={22}
+                color={typeConfig.accentColor}
+              />
             </View>
             <View style={styles.dateCard}>
               <TextInput
@@ -250,12 +324,18 @@ export default function AddTransactionScreen({ navigation, route }) {
                 onChangeText={setTime}
                 style={styles.timeInput}
               />
-              <MaterialIcons name="access-time" size={22} color="#2563EB" />
+              <MaterialIcons
+                name="access-time"
+                size={22}
+                color={typeConfig.accentColor}
+              />
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Recurring? Set Reminder</Text>
+            <Text style={[styles.label, { color: typeConfig.accentColor }]}>
+              Recurring? Set Reminder
+            </Text>
             <View style={styles.inputWrapper}>
               <TextInput
                 value={recurring}
@@ -265,7 +345,7 @@ export default function AddTransactionScreen({ navigation, route }) {
               <MaterialIcons
                 name="calendar-month"
                 size={22}
-                color="#2563EB"
+                color={typeConfig.accentColor}
                 style={styles.inputIcon}
               />
             </View>
@@ -279,7 +359,10 @@ export default function AddTransactionScreen({ navigation, route }) {
         <TouchableOpacity style={[styles.bottomButton, styles.bottomButtonBorder]}>
           <Text style={styles.bottomButtonText}>Category</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.bottomButton, styles.saveButton]} onPress={handleSave}>
+        <TouchableOpacity
+          style={[styles.bottomButton, styles.saveButton, { backgroundColor: typeConfig.accentColor }]}
+          onPress={handleSave}
+        >
           <Text style={styles.saveButtonText}>SAVE</Text>
         </TouchableOpacity>
       </View>
