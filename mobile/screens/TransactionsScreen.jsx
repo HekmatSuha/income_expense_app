@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  SafeAreaView as RNSafeAreaView,
   ScrollView as RNScrollView,
   View as RNView,
   Text as RNText,
   TouchableOpacity as RNTouchableOpacity,
 } from "react-native";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";

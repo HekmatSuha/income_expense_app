@@ -1,13 +1,13 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-  SafeAreaView as RNSafeAreaView,
   ScrollView as RNScrollView,
   View as RNView,
   Text as RNText,
   TouchableOpacity as RNTouchableOpacity,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
 import { auth } from "../firebase";

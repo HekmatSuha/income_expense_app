@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  SafeAreaView as RNSafeAreaView,
   ScrollView as RNScrollView,
   View as RNView,
   Text as RNText,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity as RNTouchableOpacity,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
