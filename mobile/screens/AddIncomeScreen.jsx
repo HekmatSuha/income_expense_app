@@ -1427,7 +1427,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#111827",
     lineHeight: 18,
-    fontWeight: "600",
   },
   bottomBar: {
     flexDirection: "row",
@@ -1870,7 +1869,7 @@ const styles = StyleSheet.create({
     width: 60,
     borderBottomWidth: 2,
     borderColor: "#0288D1",
-    fontSize: 26,
+    fontSize: 14,
     fontWeight: "700",
     textAlign: "center",
     color: "#111827",
