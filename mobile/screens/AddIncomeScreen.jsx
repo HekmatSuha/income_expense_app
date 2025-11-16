@@ -9,6 +9,7 @@ import {
   View,
   Modal,
   FlatList,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -360,6 +361,26 @@ export default function AddIncomeScreen({ navigation }) {
 
   const handleRemoveAttachment = useCallback((attachmentId) => {
     setAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
+  }, []);
+
+  const handlePreviewAttachment = useCallback(async (file) => {
+    if (!file?.uri) {
+      return;
+    }
+    try {
+      const supported = await Linking.canOpenURL(file.uri);
+      if (!supported) {
+        Alert.alert(
+          "Unsupported file",
+          "We couldn't open this attachment on your device."
+        );
+        return;
+      }
+      await Linking.openURL(file.uri);
+    } catch (error) {
+      console.error("Failed to preview attachment", error);
+      Alert.alert("Error", "Unable to open this attachment right now.");
+    }
   }, []);
 
   const handleCaptureBill = useCallback(async () => {
@@ -820,17 +841,23 @@ export default function AddIncomeScreen({ navigation }) {
             <View style={styles.attachmentList}>
               {attachments.map((file) => (
                 <View key={file.id} style={styles.attachmentItem}>
-                  <MaterialIcons
-                    name={file.type?.includes("pdf") ? "description" : "attach-file"}
-                    size={20}
-                    color="#0288D1"
-                  />
-                  <View style={styles.attachmentInfo}>
-                    <Text style={styles.attachmentName} numberOfLines={1}>
-                      {file.name}
-                    </Text>
-                    <Text style={styles.attachmentMeta}>{file.type}</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.attachmentPreview}
+                    activeOpacity={0.8}
+                    onPress={() => handlePreviewAttachment(file)}
+                  >
+                    <MaterialIcons
+                      name={file.type?.includes("pdf") ? "description" : "attach-file"}
+                      size={20}
+                      color="#0288D1"
+                    />
+                    <View style={styles.attachmentInfo}>
+                      <Text style={styles.attachmentName} numberOfLines={1}>
+                        {file.name}
+                      </Text>
+                      <Text style={styles.attachmentMeta}>{file.type}</Text>
+                    </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleRemoveAttachment(file.id)}
                     style={styles.attachmentRemove}
@@ -1565,6 +1592,12 @@ const styles = StyleSheet.create({
   attachmentItem: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+  },
+  attachmentPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
     gap: 12,
   },
   attachmentInfo: {
