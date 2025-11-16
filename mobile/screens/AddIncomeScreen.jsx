@@ -17,6 +17,11 @@ import { getBankAccounts } from "../services/bankAccountRepository";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import {
+  addIncomeCategory as persistIncomeCategory,
+  getIncomeCategories,
+  DEFAULT_INCOME_CATEGORIES,
+} from "../services/categoryRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -156,7 +161,7 @@ export default function AddIncomeScreen({ navigation }) {
   const [time, setTime] = useState(() => formatDisplayTime(new Date()));
   const [reminder, setReminder] = useState("");
   const [isAccountPickerVisible, setAccountPickerVisible] = useState(false);
-  const [categories, setCategories] = useState(['Salary', 'Freelance', 'Investment']);
+  const [categories, setCategories] = useState(DEFAULT_INCOME_CATEGORIES);
   const [isCategoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [paymentMethods, setPaymentMethods] = useState(['Cash', 'Bank']);
@@ -209,10 +214,25 @@ export default function AddIncomeScreen({ navigation }) {
     }
   }, []);
 
+  const loadIncomeCategories = useCallback(async () => {
+    try {
+      const stored = await getIncomeCategories();
+      setCategories(stored);
+      if (stored.length > 0) {
+        setCategory(stored[0]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch income categories", error);
+      setCategories(DEFAULT_INCOME_CATEGORIES);
+      setCategory(DEFAULT_INCOME_CATEGORIES[0]);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadBankAccounts();
-    }, [loadBankAccounts])
+      loadIncomeCategories();
+    }, [loadBankAccounts, loadIncomeCategories])
   );
 
   const handleIncomeChange = (text) => {
@@ -237,19 +257,29 @@ export default function AddIncomeScreen({ navigation }) {
     setIncome(formattedText);
   };
 
-  const handleAddCategory = useCallback(() => {
+  const handleAddCategory = useCallback(async () => {
     const trimmed = newCategory.trim();
     if (!trimmed) {
       Alert.alert("Missing category", "Please enter a category name.");
       return;
     }
 
-    setCategories((prev) => {
-      if (prev.includes(trimmed)) {
-        return prev;
-      }
-      return [...prev, trimmed];
-    });
+    try {
+      const updated = await persistIncomeCategory(trimmed);
+      setCategories(updated);
+    } catch (error) {
+      console.error("Failed to save category", error);
+      Alert.alert(
+        "Error",
+        "Unable to save the new category right now. We'll still add it locally."
+      );
+      setCategories((prev) => {
+        const lower = trimmed.toLowerCase();
+        const filtered = prev.filter((item) => item.toLowerCase() !== lower);
+        return [trimmed, ...filtered];
+      });
+    }
+
     setCategory(trimmed);
     setNewCategory("");
     setCategoryPickerVisible(false);
