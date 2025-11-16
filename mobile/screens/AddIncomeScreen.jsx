@@ -173,7 +173,7 @@ const formatAccountBalanceLabel = (account) => {
 
 export default function AddIncomeScreen({ navigation }) {
   const [income, setIncome] = useState("");
-  const [category, setCategory] = useState("Salary");
+  const [category, setCategory] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("Bank");
   const [account, setAccount] = useState(null);
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -227,9 +227,6 @@ export default function AddIncomeScreen({ navigation }) {
     try {
       const accounts = await getBankAccounts();
       setBankAccounts(accounts);
-      if (accounts.length > 0) {
-        setAccount(accounts[0]);
-      }
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
     }
@@ -239,13 +236,10 @@ export default function AddIncomeScreen({ navigation }) {
     try {
       const stored = await getIncomeCategories();
       setCategories(stored);
-      if (stored.length > 0) {
-        setCategory(stored[0]);
-      }
     } catch (error) {
       console.error("Failed to fetch income categories", error);
       setCategories(DEFAULT_INCOME_CATEGORIES);
-      setCategory(DEFAULT_INCOME_CATEGORIES[0]);
+      setCategory(null);
     }
   }, []);
 
@@ -668,6 +662,11 @@ export default function AddIncomeScreen({ navigation }) {
       return;
     }
 
+    if (!category) {
+      Alert.alert("Missing category", "Please select a category to continue.");
+      return;
+    }
+
     const payload = {
       amount: Number(income.replace(/,/g, '')), // Remove commas before saving
       type: "INCOME",
@@ -770,7 +769,14 @@ export default function AddIncomeScreen({ navigation }) {
               <View style={styles.rowCardIcon}>
                 <MaterialIcons name="work" size={22} color="#4B5563" />
               </View>
-              <Text style={styles.rowCardInput}>{category}</Text>
+              <Text
+                style={[
+                  styles.rowCardInput,
+                  !category && styles.placeholderText,
+                ]}
+              >
+                {category || "Select category"}
+              </Text>
               <View style={styles.categoryDots}>
                 <View style={styles.dot} />
                 <View style={styles.dot} />
@@ -795,7 +801,12 @@ export default function AddIncomeScreen({ navigation }) {
               activeOpacity={0.8}
               style={styles.rowCard}
             >
-              <Text style={styles.rowCardInput}>
+              <Text
+                style={[
+                  styles.rowCardInput,
+                  !account && styles.placeholderText,
+                ]}
+              >
                 {account
                   ? `${account.name} (${formatAccountBalanceLabel(account)})`
                   : "Select account"}
@@ -1462,6 +1473,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#111827",
     paddingVertical: 0,
+  },
+  placeholderText: {
+    color: "#9CA3AF",
   },
   categoryDots: {
     flexDirection: "row",

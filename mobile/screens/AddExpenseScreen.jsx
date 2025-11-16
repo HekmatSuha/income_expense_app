@@ -173,7 +173,7 @@ const formatAccountBalanceLabel = (account) => {
 
 export default function AddExpenseScreen({ navigation }) {
   const [expense, setExpense] = useState("");
-  const [category, setCategory] = useState("Salary");
+  const [category, setCategory] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("Bank");
   const [account, setAccount] = useState(null);
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -227,9 +227,6 @@ export default function AddExpenseScreen({ navigation }) {
     try {
       const accounts = await getBankAccounts();
       setBankAccounts(accounts);
-      if (accounts.length > 0) {
-        setAccount(accounts[0]);
-      }
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
     }
@@ -239,13 +236,10 @@ export default function AddExpenseScreen({ navigation }) {
     try {
       const stored = await getExpenseCategories();
       setCategories(stored);
-      if (stored.length > 0) {
-        setCategory(stored[0]);
-      }
     } catch (error) {
       console.error("Failed to fetch expense categories", error);
       setCategories(DEFAULT_EXPENSE_CATEGORIES);
-      setCategory(DEFAULT_EXPENSE_CATEGORIES[0]);
+      setCategory(null);
     }
   }, []);
 
@@ -668,6 +662,11 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
+    if (!category) {
+      Alert.alert("Missing category", "Please select a category to continue.");
+      return;
+    }
+
     const normalizedAmount = Number(expense.replace(/,/g, ''));
     const payload = {
       amount: -Math.abs(normalizedAmount), // Expenses deduct from the account
@@ -771,7 +770,14 @@ export default function AddExpenseScreen({ navigation }) {
               <View style={styles.rowCardIcon}>
                 <MaterialIcons name="work" size={22} color="#4B5563" />
               </View>
-              <Text style={styles.rowCardInput}>{category}</Text>
+              <Text
+                style={[
+                  styles.rowCardInput,
+                  !category && styles.placeholderText,
+                ]}
+              >
+                {category || "Select category"}
+              </Text>
               <View style={styles.categoryDots}>
                 <View style={styles.dot} />
                 <View style={styles.dot} />
@@ -796,7 +802,12 @@ export default function AddExpenseScreen({ navigation }) {
               activeOpacity={0.8}
               style={styles.rowCard}
             >
-              <Text style={styles.rowCardInput}>
+              <Text
+                style={[
+                  styles.rowCardInput,
+                  !account && styles.placeholderText,
+                ]}
+              >
                 {account
                   ? `${account.name} (${formatAccountBalanceLabel(account)})`
                   : "Select account"}
@@ -1463,6 +1474,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#111827",
     paddingVertical: 0,
+  },
+  placeholderText: {
+    color: "#9CA3AF",
   },
   categoryDots: {
     flexDirection: "row",
