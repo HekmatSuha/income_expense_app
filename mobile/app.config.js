@@ -16,6 +16,9 @@ requiredFirebaseKeys.forEach((key) => {
   }
 });
 
-export default () => ({
-  ...appJson,
+const baseExpoConfig = appJson?.expo ?? {};
+
+export default ({ config }) => ({
+  ...config,
+  ...baseExpoConfig,
 });
