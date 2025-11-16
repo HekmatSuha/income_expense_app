@@ -10,15 +10,11 @@ import {
   View,
   Modal,
   FlatList,
-  Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { persistTransaction } from "../services/transactionRepository";
 import { getBankAccounts } from "../services/bankAccountRepository";
 import { useFocusEffect } from "@react-navigation/native";
-import DateTimePicker, {
-  DateTimePickerAndroid,
-} from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 
@@ -39,6 +35,8 @@ const buildDateLabel = (value) => {
   return value;
 };
 
+const padNumber = (value, size = 2) => String(value).padStart(size, "0");
+
 const formatDisplayDate = (value) => {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     return "";
@@ -53,10 +51,11 @@ const formatDisplayTime = (value) => {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     return "";
   }
-  return value.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const hours24 = value.getHours();
+  const minutes = value.getMinutes();
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hour12 = hours24 % 12 || 12;
+  return `${hour12}:${padNumber(minutes)} ${period}`;
 };
 
 const formatItemAmount = (value) => {
@@ -67,6 +66,85 @@ const formatItemAmount = (value) => {
   return numeric.toLocaleString();
 };
 
+const sanitizeNumberInput = (value) => {
+  if (typeof value !== "string") {
+    return NaN;
+  }
+  const normalized = value.replace(/,/g, "");
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : NaN;
+};
+
+const computeItemAmount = (item) => {
+  const amount = Number(item?.amount);
+  if (!Number.isNaN(amount) && amount > 0) {
+    return amount;
+  }
+  const quantity = Number(item?.quantity);
+  const rate = Number(item?.rate);
+  if (Number.isNaN(quantity) || Number.isNaN(rate)) {
+    return 0;
+  }
+  return quantity * rate;
+};
+
+const buildItemsSummaryText = (list) => {
+  if (!Array.isArray(list) || list.length === 0) {
+    return "";
+  }
+  const lines = list.map((item, index) => {
+    const quantity = Number(item?.quantity) || 0;
+    const rate = Number(item?.rate) || 0;
+    const amount = computeItemAmount(item);
+    const readableRate = formatItemAmount(rate) || rate.toString();
+    const readableAmount = formatItemAmount(amount) || amount.toString();
+    return `${index + 1}. ${item.name} - ${quantity} x ${readableRate} = ${readableAmount}`;
+  });
+  const total = list.reduce((sum, item) => sum + computeItemAmount(item), 0);
+  const readableTotal = formatItemAmount(total) || total.toString();
+  return `Items:\n${lines.join("\n")}\nTotal ${readableTotal}`;
+};
+
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const DAY_COLUMN_WIDTH = `${(1 / DAY_LABELS.length) * 100}%`;
+
+const isSameDay = (a, b) =>
+  a?.getFullYear() === b?.getFullYear() &&
+  a?.getMonth() === b?.getMonth() &&
+  a?.getDate() === b?.getDate();
+
+const buildCalendarMatrix = (cursor) => {
+  if (!(cursor instanceof Date)) {
+    return [];
+  }
+  const firstOfMonth = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const startWeekDay = firstOfMonth.getDay();
+  const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+
+  const days = [];
+  for (let i = startWeekDay; i > 0; i -= 1) {
+    const date = new Date(cursor.getFullYear(), cursor.getMonth(), 1 - i);
+    days.push({ date, isCurrentMonth: false });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(cursor.getFullYear(), cursor.getMonth(), day);
+    days.push({ date, isCurrentMonth: true });
+  }
+
+  while (days.length % 7 !== 0) {
+    const last = days[days.length - 1].date;
+    const date = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
+    days.push({ date, isCurrentMonth: false });
+  }
+
+  const rows = [];
+  for (let i = 0; i < days.length; i += 7) {
+    rows.push(days.slice(i, i + 7));
+  }
+  return rows;
+};
+
 export default function AddIncomeScreen({ navigation }) {
   const [income, setIncome] = useState("");
   const [category, setCategory] = useState("Salary");
@@ -74,8 +152,8 @@ export default function AddIncomeScreen({ navigation }) {
   const [account, setAccount] = useState(null);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [notes, setNotes] = useState("");
-  const [date, setDate] = useState("14-Nov-2025");
-  const [time, setTime] = useState("11:16 PM");
+  const [date, setDate] = useState(() => formatDisplayDate(new Date()));
+  const [time, setTime] = useState(() => formatDisplayTime(new Date()));
   const [reminder, setReminder] = useState("");
   const [isAccountPickerVisible, setAccountPickerVisible] = useState(false);
   const [categories, setCategories] = useState(['Salary', 'Freelance', 'Investment']);
@@ -88,13 +166,32 @@ export default function AddIncomeScreen({ navigation }) {
   const [isAttachmentPickerVisible, setAttachmentPickerVisible] = useState(false);
   const [items, setItems] = useState([]);
   const [isItemModalVisible, setItemModalVisible] = useState(false);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemAmount, setNewItemAmount] = useState('');
+  const [itemComposerItems, setItemComposerItems] = useState([]);
+  const [itemNameInput, setItemNameInput] = useState("");
+  const [itemQuantityInput, setItemQuantityInput] = useState("");
+  const [itemRateInput, setItemRateInput] = useState("");
+  const [lastItemsSummary, setLastItemsSummary] = useState("");
   const [inlinePickerMode, setInlinePickerMode] = useState("date");
-  const [inlinePickerValue, setInlinePickerValue] = useState(new Date());
   const [isInlinePickerVisible, setInlinePickerVisible] = useState(false);
+  const [calendarCursor, setCalendarCursor] = useState(new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
+  const [timeHourInput, setTimeHourInput] = useState("12");
+  const [timeMinuteInput, setTimeMinuteInput] = useState("00");
+  const [timePeriodInput, setTimePeriodInput] = useState("AM");
 
+  const itemComposerTotal = useMemo(
+    () => itemComposerItems.reduce((sum, item) => sum + computeItemAmount(item), 0),
+    [itemComposerItems]
+  );
+  const calendarMatrix = useMemo(
+    () => buildCalendarMatrix(calendarCursor),
+    [calendarCursor]
+  );
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
+  const timeLabel = useMemo(
+    () => (time || "").replace(/\s+/g, " ").trim(),
+    [time]
+  );
   const currentDateTime = useMemo(
     () => new Date(parseDateTimeToISO(date, time)),
     [date, time]
@@ -270,56 +367,119 @@ export default function AddIncomeScreen({ navigation }) {
     }
   }, [appendAttachment]);
 
-  const handleAddItem = useCallback(() => {
-    if (!newItemName.trim()) {
+  const handleOpenItemModal = useCallback(() => {
+    setItemComposerItems(items.map((item) => ({ ...item })));
+    setItemNameInput("");
+    setItemQuantityInput("");
+    setItemRateInput("");
+    setItemModalVisible(true);
+  }, [items]);
+
+  const handleCancelItemModal = useCallback(() => {
+    setItemModalVisible(false);
+    setItemComposerItems([]);
+    setItemNameInput("");
+    setItemQuantityInput("");
+    setItemRateInput("");
+  }, []);
+
+  const handleRemoveComposerItem = useCallback((itemId) => {
+    setItemComposerItems((prev) => prev.filter((item) => item.id !== itemId));
+  }, []);
+
+  const syncNotesWithItems = useCallback(
+    (nextItems) => {
+      if (!lastItemsSummary && nextItems.length === 0) {
+        return;
+      }
+      const summary = buildItemsSummaryText(nextItems);
+      setNotes((prevNotes) => {
+        let base = prevNotes || "";
+        if (lastItemsSummary && base.includes(lastItemsSummary)) {
+          base = base.replace(lastItemsSummary, "").trimEnd();
+        }
+        if (!summary) {
+          return base;
+        }
+        const trimmedBase = base.trimEnd();
+        if (!trimmedBase) {
+          return summary;
+        }
+        return `${trimmedBase}\n\n${summary}`;
+      });
+      setLastItemsSummary(summary);
+    },
+    [lastItemsSummary]
+  );
+
+  const handleAddComposerItem = useCallback(() => {
+    if (!itemNameInput.trim()) {
       Alert.alert("Missing item", "Please enter an item name.");
       return;
     }
-    const numericAmount = newItemAmount ? Number(newItemAmount.replace(/,/g, "")) : null;
-    if (newItemAmount && Number.isNaN(numericAmount)) {
-      Alert.alert("Invalid amount", "Please enter a valid amount.");
+    const quantityValue = sanitizeNumberInput(itemQuantityInput);
+    const rateValue = sanitizeNumberInput(itemRateInput);
+    if (Number.isNaN(quantityValue) || Number.isNaN(rateValue)) {
+      Alert.alert("Invalid item", "Please enter valid quantity and rate.");
       return;
     }
-    setItems((prev) => [
+    if (quantityValue <= 0 || rateValue <= 0) {
+      Alert.alert("Invalid values", "Quantity and rate must be greater than zero.");
+      return;
+    }
+    const amount = quantityValue * rateValue;
+    setItemComposerItems((prev) => [
       ...prev,
       {
         id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        name: newItemName.trim(),
-        amount: numericAmount,
+        name: itemNameInput.trim(),
+        quantity: quantityValue,
+        rate: rateValue,
+        amount,
       },
     ]);
-    setNewItemName("");
-    setNewItemAmount("");
-    setItemModalVisible(false);
-  }, [newItemAmount, newItemName]);
+    setItemNameInput("");
+    setItemQuantityInput("");
+    setItemRateInput("");
+  }, [itemNameInput, itemQuantityInput, itemRateInput]);
 
-  const handleRemoveItem = useCallback((itemId) => {
-    setItems((prev) => prev.filter((item) => item.id !== itemId));
-  }, []);
+  const handleConfirmItemModal = useCallback(() => {
+    const finalizedItems = itemComposerItems.map((item) => ({ ...item }));
+    setItems(finalizedItems);
+    syncNotesWithItems(finalizedItems);
+    setItemModalVisible(false);
+    setItemComposerItems([]);
+    setItemNameInput("");
+    setItemQuantityInput("");
+    setItemRateInput("");
+  }, [itemComposerItems, syncNotesWithItems]);
+
+  const handleRemoveItem = useCallback(
+    (itemId) => {
+      setItems((prev) => {
+        const updated = prev.filter((item) => item.id !== itemId);
+        syncNotesWithItems(updated);
+        return updated;
+      });
+    },
+    [syncNotesWithItems]
+  );
 
   const openPicker = useCallback(
     (mode) => {
       const baseDate = currentDateTime;
-      if (Platform.OS === "android") {
-        DateTimePickerAndroid.open({
-          mode,
-          value: baseDate,
-          is24Hour: false,
-          onChange: (_, selectedDate) => {
-            if (!selectedDate) {
-              return;
-            }
-            if (mode === "date") {
-              setDate(formatDisplayDate(selectedDate));
-            } else {
-              setTime(formatDisplayTime(selectedDate));
-            }
-          },
-        });
-        return;
-      }
       setInlinePickerMode(mode);
-      setInlinePickerValue(baseDate);
+      if (mode === "date") {
+        setCalendarCursor(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
+        setSelectedCalendarDate(baseDate);
+      } else {
+        const hours24 = baseDate.getHours();
+        const minutes = baseDate.getMinutes();
+        const hour12 = hours24 % 12 || 12;
+        setTimeHourInput(padNumber(hour12));
+        setTimeMinuteInput(padNumber(minutes));
+        setTimePeriodInput(hours24 >= 12 ? "PM" : "AM");
+      }
       setInlinePickerVisible(true);
     },
     [currentDateTime]
@@ -327,21 +487,72 @@ export default function AddIncomeScreen({ navigation }) {
 
   const handleInlinePickerConfirm = useCallback(() => {
     if (inlinePickerMode === "date") {
-      setDate(formatDisplayDate(inlinePickerValue));
-    } else {
-      setTime(formatDisplayTime(inlinePickerValue));
+      setDate(formatDisplayDate(selectedCalendarDate));
+      setInlinePickerVisible(false);
+      return;
     }
+    const hourValue = Number(timeHourInput);
+    const minuteValue = Number(timeMinuteInput);
+    if (
+      Number.isNaN(hourValue) ||
+      Number.isNaN(minuteValue) ||
+      hourValue < 1 ||
+      hourValue > 12 ||
+      minuteValue < 0 ||
+      minuteValue > 59
+    ) {
+      Alert.alert("Invalid time", "Please enter a valid hour (1-12) and minutes (0-59).");
+      return;
+    }
+    const normalizedHour = hourValue % 12;
+    const hour24 = timePeriodInput === "PM" ? normalizedHour + 12 : normalizedHour;
+    const baseDate = currentDateTime;
+    const nextDate = new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate(),
+      hour24,
+      minuteValue
+    );
+    setTime(formatDisplayTime(nextDate));
     setInlinePickerVisible(false);
-  }, [inlinePickerMode, inlinePickerValue]);
-
-  const handleInlinePickerChange = useCallback((_, selectedDate) => {
-    if (selectedDate) {
-      setInlinePickerValue(selectedDate);
-    }
-  }, []);
+  }, [
+    currentDateTime,
+    inlinePickerMode,
+    selectedCalendarDate,
+    timeHourInput,
+    timeMinuteInput,
+    timePeriodInput,
+  ]);
 
   const handleInlinePickerCancel = useCallback(() => {
     setInlinePickerVisible(false);
+  }, []);
+
+  const handleTimeHourChange = useCallback((value) => {
+    const sanitized = value.replace(/[^0-9]/g, "").slice(0, 2);
+    setTimeHourInput(sanitized);
+  }, []);
+
+  const handleTimeMinuteChange = useCallback((value) => {
+    const sanitized = value.replace(/[^0-9]/g, "").slice(0, 2);
+    setTimeMinuteInput(sanitized);
+  }, []);
+
+  const handlePeriodToggle = useCallback((period) => {
+    setTimePeriodInput(period);
+  }, []);
+
+  const handleCalendarMonthChange = useCallback((offset) => {
+    setCalendarCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
+  }, []);
+
+  const handleCalendarSelectDate = useCallback((targetDate) => {
+    if (!(targetDate instanceof Date)) {
+      return;
+    }
+    setSelectedCalendarDate(targetDate);
+    setCalendarCursor(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
   }, []);
 
   const handleDatePress = useCallback(() => {
@@ -523,7 +734,7 @@ export default function AddIncomeScreen({ navigation }) {
             <TouchableOpacity
               style={styles.actionButton}
               activeOpacity={0.85}
-              onPress={() => setItemModalVisible(true)}
+              onPress={handleOpenItemModal}
             >
               <MaterialIcons name="format-list-bulleted" size={22} color="#0288D1" />
               <Text style={styles.actionButtonText}>Add Items</Text>
@@ -559,24 +770,38 @@ export default function AddIncomeScreen({ navigation }) {
 
           {items.length > 0 ? (
             <View style={styles.itemsList}>
-              {items.map((item) => (
-                <View key={item.id} style={styles.itemRow}>
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    {item.amount !== null ? (
-                      <Text style={styles.itemAmount}>{formatItemAmount(item.amount)}</Text>
-                    ) : (
-                      <Text style={styles.itemAmountMuted}>No amount</Text>
-                    )}
+              {items.map((item) => {
+                const amountValue = computeItemAmount(item);
+                const hasDetails =
+                  Number.isFinite(item?.quantity) && Number.isFinite(item?.rate);
+                const rateLabel =
+                  formatItemAmount(item.rate) || item.rate?.toString() || "0";
+                return (
+                  <View key={item.id} style={styles.itemRow}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      {hasDetails ? (
+                        <Text style={styles.itemAmountMuted}>
+                          {`${item.quantity} x ${rateLabel}`}
+                        </Text>
+                      ) : null}
+                      {amountValue > 0 ? (
+                        <Text style={styles.itemAmount}>
+                          {formatItemAmount(amountValue) || amountValue.toString()}
+                        </Text>
+                      ) : (
+                        <Text style={styles.itemAmountMuted}>No amount</Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveItem(item.id)}
+                      accessibilityLabel={`Remove ${item.name}`}
+                    >
+                      <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => handleRemoveItem(item.id)}
-                    accessibilityLabel={`Remove ${item.name}`}
-                  >
-                    <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ) : null}
 
@@ -595,7 +820,7 @@ export default function AddIncomeScreen({ navigation }) {
               onPress={handleTimePress}
             >
               <MaterialIcons name="access-time" size={22} color="#0288D1" />
-              <Text style={styles.timeInput}>{time}</Text>
+              <Text style={styles.timeInput}>{timeLabel || "Select time"}</Text>
             </TouchableOpacity>
           </View>
 
@@ -702,33 +927,119 @@ export default function AddIncomeScreen({ navigation }) {
         visible={isItemModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setItemModalVisible(false)}
+        onRequestClose={handleCancelItemModal}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add item</Text>
+        <View style={styles.itemModalOverlay}>
+          <View style={styles.itemModalCard}>
+            <Text style={styles.itemModalTitle}>Add Items</Text>
             <TextInput
-              style={styles.modalInput}
-              placeholder="Item name"
-              value={newItemName}
-              onChangeText={setNewItemName}
+              style={styles.itemModalInputFull}
+              placeholder="Item"
+              placeholderTextColor="#9CA3AF"
+              value={itemNameInput}
+              onChangeText={setItemNameInput}
             />
-            <TextInput
-              style={[styles.modalInput, styles.modalInputSpacing]}
-              placeholder="Amount (optional)"
-              keyboardType="decimal-pad"
-              value={newItemAmount}
-              onChangeText={setNewItemAmount}
-            />
-            <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleAddItem}>
-              <Text style={styles.modalPrimaryButtonText}>Save Item</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalSecondaryButton}
-              onPress={() => setItemModalVisible(false)}
-            >
-              <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
-            </TouchableOpacity>
+            <View style={styles.itemModalRow}>
+              <TextInput
+                style={[styles.itemModalInput, styles.itemModalInputQuantity]}
+                placeholder="Quantity"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                value={itemQuantityInput}
+                onChangeText={setItemQuantityInput}
+              />
+              <TextInput
+                style={[styles.itemModalInput, styles.itemModalInputRate]}
+                placeholder="Rate"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                value={itemRateInput}
+                onChangeText={setItemRateInput}
+              />
+              <TouchableOpacity
+                style={styles.itemModalAddButton}
+                onPress={handleAddComposerItem}
+              >
+                <Text style={styles.itemModalAddButtonText}>ADD</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.itemModalList}>
+              {itemComposerItems.length === 0 ? (
+                <Text style={styles.itemModalEmptyText}>
+                  Added items will appear here.
+                </Text>
+              ) : (
+                <ScrollView
+                  style={styles.itemModalScroll}
+                  contentContainerStyle={styles.itemModalScrollContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {itemComposerItems.map((item, index) => {
+                    const amountValue = computeItemAmount(item);
+                    const hasBreakdown =
+                      Number.isFinite(item?.quantity) && Number.isFinite(item?.rate);
+                    const rateLabel =
+                      formatItemAmount(item.rate) || item.rate?.toString() || "0";
+                    const amountLabel =
+                      formatItemAmount(amountValue) || amountValue.toString();
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.itemModalListRow,
+                          index === itemComposerItems.length - 1 &&
+                            styles.itemModalLastRow,
+                        ]}
+                      >
+                        <View style={styles.itemModalListInfo}>
+                          <Text style={styles.itemModalItemName}>{item.name}</Text>
+                          {hasBreakdown ? (
+                            <Text style={styles.itemModalItemMeta}>
+                              {`${item.quantity} x ${rateLabel}`}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.itemModalListActions}>
+                          <Text style={styles.itemModalAmountText}>{amountLabel}</Text>
+                          <TouchableOpacity
+                            accessibilityLabel={`Remove ${item.name}`}
+                            onPress={() => handleRemoveComposerItem(item.id)}
+                            style={styles.itemModalRemoveButton}
+                          >
+                            <MaterialIcons name="close" size={18} color="#9CA3AF" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+            <View style={styles.itemModalTotalRow}>
+              <Text style={styles.itemModalTotalLabel}>Total</Text>
+              <Text style={styles.itemModalTotalValue}>
+                {formatItemAmount(itemComposerTotal) || itemComposerTotal.toString()}
+              </Text>
+            </View>
+            <View style={styles.itemModalActions}>
+              <TouchableOpacity onPress={handleCancelItemModal}>
+                <Text style={styles.itemModalActionText}>CANCEL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirmItemModal}
+                disabled={itemComposerItems.length === 0}
+              >
+                <Text
+                  style={[
+                    styles.itemModalActionText,
+                    styles.itemModalActionPrimary,
+                    itemComposerItems.length === 0 && styles.itemModalActionDisabled,
+                  ]}
+                >
+                  OK
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -814,19 +1125,147 @@ export default function AddIncomeScreen({ navigation }) {
       >
         <View style={styles.pickerModal}>
           <View style={styles.pickerContent}>
-            <DateTimePicker
-              value={inlinePickerValue}
-              mode={inlinePickerMode}
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={handleInlinePickerChange}
-              style={styles.pickerComponent}
-            />
+            <View style={styles.pickerHero}>
+              <Text style={styles.pickerHeroTitle}>
+                {inlinePickerMode === "date" ? "Set date" : "Set time"}
+              </Text>
+              <Text style={styles.pickerHeroSubtitle}>
+                {inlinePickerMode === "date"
+                  ? selectedCalendarDate
+                    ? selectedCalendarDate.toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : ""
+                  : `${padNumber(timeHourInput || "12")}:${padNumber(
+                      timeMinuteInput || "00"
+                    )} ${timePeriodInput}`}
+              </Text>
+            </View>
+
+            {inlinePickerMode === "date" ? (
+              <View style={styles.calendarPicker}>
+                <View style={styles.calendarHeader}>
+                  <TouchableOpacity
+                    onPress={() => handleCalendarMonthChange(-1)}
+                    style={styles.calendarNavButton}
+                  >
+                    <MaterialIcons name="chevron-left" size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <Text style={styles.calendarMonthLabel}>
+                    {calendarCursor.toLocaleDateString(undefined, {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleCalendarMonthChange(1)}
+                    style={styles.calendarNavButton}
+                  >
+                    <MaterialIcons name="chevron-right" size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.calendarWeekRow}>
+                  {DAY_LABELS.map((label) => (
+                    <Text key={label} style={styles.calendarWeekDay}>
+                      {label}
+                    </Text>
+                  ))}
+                </View>
+                <View style={styles.calendarGrid}>
+                  {calendarMatrix.map((row, rowIndex) => (
+                    <View key={`row-${rowIndex}`} style={styles.calendarRow}>
+                      {row.map((cell) => {
+                        const active = isSameDay(cell.date, selectedCalendarDate);
+                        return (
+                          <TouchableOpacity
+                            key={cell.date.toISOString()}
+                            style={[
+                              styles.calendarCell,
+                              !cell.isCurrentMonth && styles.calendarCellMuted,
+                              active && styles.calendarCellActive,
+                            ]}
+                            onPress={() => handleCalendarSelectDate(cell.date)}
+                          >
+                            <Text
+                              style={[
+                                styles.calendarCellText,
+                                !cell.isCurrentMonth && styles.calendarCellTextMuted,
+                                active && styles.calendarCellTextActive,
+                              ]}
+                            >
+                              {cell.date.getDate()}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.timePicker}>
+                <Text style={styles.timePickerHint}>Type in time</Text>
+                <View style={styles.timePickerInputs}>
+                  <View style={styles.timeInputWrapper}>
+                    <TextInput
+                      style={styles.timeInput}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      value={timeHourInput}
+                      onChangeText={handleTimeHourChange}
+                      placeholder="HH"
+                    />
+                    <Text style={styles.timeInputLabel}>hour</Text>
+                  </View>
+                  <Text style={styles.timeColon}>:</Text>
+                  <View style={styles.timeInputWrapper}>
+                    <TextInput
+                      style={styles.timeInput}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      value={timeMinuteInput}
+                      onChangeText={handleTimeMinuteChange}
+                      placeholder="MM"
+                    />
+                    <Text style={styles.timeInputLabel}>minute</Text>
+                  </View>
+                  <View style={styles.periodToggle}>
+                    {["AM", "PM"].map((period) => (
+                      <TouchableOpacity
+                        key={period}
+                        style={[
+                          styles.periodButton,
+                          timePeriodInput === period && styles.periodButtonActive,
+                        ]}
+                        onPress={() => handlePeriodToggle(period)}
+                      >
+                        <Text
+                          style={[
+                            styles.periodButtonText,
+                            timePeriodInput === period && styles.periodButtonTextActive,
+                          ]}
+                        >
+                          {period}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            )}
+
             <View style={styles.pickerActions}>
               <TouchableOpacity style={styles.pickerButton} onPress={handleInlinePickerCancel}>
                 <Text style={styles.pickerButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.pickerButton, styles.pickerConfirm]} onPress={handleInlinePickerConfirm}>
-                <Text style={[styles.pickerButtonText, styles.pickerConfirmText]}>Save</Text>
+              <TouchableOpacity
+                style={[styles.pickerButton, styles.pickerConfirm]}
+                onPress={handleInlinePickerConfirm}
+              >
+                <Text style={[styles.pickerButtonText, styles.pickerConfirmText]}>OK</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -977,13 +1416,18 @@ const styles = StyleSheet.create({
   },
   dateInput: {
     flex: 1,
+    minWidth: 0,
     fontSize: 14,
     color: "#111827",
+    lineHeight: 18,
   },
   timeInput: {
     flex: 1,
-    fontSize: 16,
+    minWidth: 0,
+    fontSize: 14,
     color: "#111827",
+    lineHeight: 18,
+    fontWeight: "600",
   },
   bottomBar: {
     flexDirection: "row",
@@ -1155,6 +1599,162 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  itemModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    padding: 20,
+  },
+  itemModalCard: {
+    width: "90%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+  },
+  itemModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 16,
+    color: "#111827",
+  },
+  itemModalInputFull: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    fontSize: 14,
+    color: "#111827",
+  },
+  itemModalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  itemModalInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#111827",
+  },
+  itemModalInputQuantity: {
+    flex: 0.9,
+  },
+  itemModalInputRate: {
+    flex: 0.9,
+  },
+  itemModalAddButton: {
+    backgroundColor: "#0288D1",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  itemModalAddButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  itemModalList: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 120,
+    maxHeight: 220,
+    marginBottom: 16,
+    backgroundColor: "#F9FAFB",
+  },
+  itemModalScroll: {
+    flexGrow: 0,
+  },
+  itemModalScrollContent: {
+    paddingBottom: 4,
+  },
+  itemModalEmptyText: {
+    textAlign: "center",
+    color: "#9CA3AF",
+    fontSize: 13,
+  },
+  itemModalListRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  itemModalLastRow: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  itemModalListInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  itemModalItemName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  itemModalItemMeta: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 4,
+  },
+  itemModalListActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  itemModalAmountText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0288D1",
+  },
+  itemModalRemoveButton: {
+    padding: 6,
+  },
+  itemModalTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  itemModalTotalLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  itemModalTotalValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0288D1",
+  },
+  itemModalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 24,
+  },
+  itemModalActionText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  itemModalActionPrimary: {
+    color: "#0288D1",
+  },
+  itemModalActionDisabled: {
+    color: "#D1D5DB",
+  },
   pickerModal: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
@@ -1162,19 +1762,159 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pickerContent: {
-    width: "80%",
+    width: "85%",
+    maxWidth: 380,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 0,
+    overflow: "hidden",
   },
-  pickerComponent: {
-    width: "100%",
+  pickerHero: {
+    backgroundColor: "#0288D1",
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+  },
+  pickerHeroTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  pickerHeroSubtitle: {
+    color: "#E0F2FE",
+    fontSize: 16,
+    marginTop: 6,
+  },
+  calendarPicker: {
+    padding: 16,
+    gap: 10,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#0288D1",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  calendarMonthLabel: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  calendarNavButton: {
+    padding: 6,
+  },
+  calendarWeekRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  calendarWeekDay: {
+    width: DAY_COLUMN_WIDTH,
+    textAlign: "center",
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  calendarGrid: {
+    gap: 4,
+  },
+  calendarRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  calendarCell: {
+    width: DAY_COLUMN_WIDTH,
+    aspectRatio: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 999,
+    backgroundColor: "#E5E7EB",
+  },
+  calendarCellMuted: {
+    backgroundColor: "#F9FAFB",
+  },
+  calendarCellActive: {
+    backgroundColor: "#0288D1",
+  },
+  calendarCellText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  calendarCellTextMuted: {
+    color: "#9CA3AF",
+  },
+  calendarCellTextActive: {
+    color: "#FFFFFF",
+  },
+  timePicker: {
+    padding: 16,
+    gap: 12,
+  },
+  timePickerHint: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  timePickerInputs: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  timeInputWrapper: {
+    alignItems: "center",
+  },
+  timeInput: {
+    width: 60,
+    borderBottomWidth: 2,
+    borderColor: "#0288D1",
+    fontSize: 26,
+    fontWeight: "700",
+    textAlign: "center",
+    color: "#111827",
+    paddingVertical: 2,
+  },
+  timeInputLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
+  },
+  timeColon: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#0288D1",
+  },
+  periodToggle: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#0288D1",
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  periodButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "transparent",
+  },
+  periodButtonActive: {
+    backgroundColor: "#0288D1",
+  },
+  periodButtonText: {
+    fontSize: 14,
+    color: "#0288D1",
+    fontWeight: "700",
+  },
+  periodButtonTextActive: {
+    color: "#FFFFFF",
   },
   pickerActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 12,
-    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   pickerButton: {
     paddingVertical: 8,
