@@ -150,6 +150,21 @@ const buildCalendarMatrix = (cursor) => {
   return rows;
 };
 
+const formatAccountBalanceLabel = (account) => {
+  if (!account) {
+    return "";
+  }
+  const amount = Number(account.balance);
+  const formattedAmount = Number.isFinite(amount)
+    ? amount.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : "0.00";
+  const currency = account.currency || "";
+  return currency ? `${formattedAmount} ${currency}` : formattedAmount;
+};
+
 export default function AddIncomeScreen({ navigation }) {
   const [income, setIncome] = useState("");
   const [category, setCategory] = useState("Salary");
@@ -732,7 +747,9 @@ export default function AddIncomeScreen({ navigation }) {
               style={styles.rowCard}
             >
               <Text style={styles.rowCardInput}>
-                {account ? `${account.name} (${account.currency})` : "Select account"}
+                {account
+                  ? `${account.name} (${formatAccountBalanceLabel(account)})`
+                  : "Select account"}
               </Text>
               <MaterialIcons name="account-balance" size={22} color="#0288D1" />
             </TouchableOpacity>
@@ -897,7 +914,7 @@ export default function AddIncomeScreen({ navigation }) {
                   }}
                   style={styles.modalItem}
                 >
-                  <Text>{`${item.name} (${item.currency})`}</Text>
+                  <Text>{`${item.name} (${formatAccountBalanceLabel(item)})`}</Text>
                 </TouchableOpacity>
               )}
             />
