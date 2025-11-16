@@ -10,11 +10,17 @@ import {
   View,
   Modal,
   FlatList,
+  Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { persistTransaction } from "../services/transactionRepository";
 import { getBankAccounts } from "../services/bankAccountRepository";
 import { useFocusEffect } from "@react-navigation/native";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -31,6 +37,34 @@ const buildDateLabel = (value) => {
     return "";
   }
   return value;
+};
+
+const formatDisplayDate = (value) => {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return "";
+  }
+  const day = value.toLocaleDateString(undefined, { day: "2-digit" });
+  const month = value.toLocaleDateString(undefined, { month: "short" });
+  const year = value.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+const formatDisplayTime = (value) => {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return "";
+  }
+  return value.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatItemAmount = (value) => {
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) {
+    return "";
+  }
+  return numeric.toLocaleString();
 };
 
 export default function AddIncomeScreen({ navigation }) {
@@ -50,8 +84,21 @@ export default function AddIncomeScreen({ navigation }) {
   const [paymentMethods, setPaymentMethods] = useState(['Cash', 'Bank']);
   const [isPaymentMethodPickerVisible, setPaymentMethodPickerVisible] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [isAttachmentPickerVisible, setAttachmentPickerVisible] = useState(false);
+  const [items, setItems] = useState([]);
+  const [isItemModalVisible, setItemModalVisible] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemAmount, setNewItemAmount] = useState('');
+  const [inlinePickerMode, setInlinePickerMode] = useState("date");
+  const [inlinePickerValue, setInlinePickerValue] = useState(new Date());
+  const [isInlinePickerVisible, setInlinePickerVisible] = useState(false);
 
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
+  const currentDateTime = useMemo(
+    () => new Date(parseDateTimeToISO(date, time)),
+    [date, time]
+  );
 
   const loadBankAccounts = useCallback(async () => {
     try {
@@ -129,6 +176,182 @@ export default function AddIncomeScreen({ navigation }) {
     setPaymentMethodPickerVisible(false);
   }, [newPaymentMethod]);
 
+  const appendAttachment = useCallback((attachment) => {
+    setAttachments((prev) => [
+      ...prev,
+      {
+        id: attachment?.id || `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: attachment?.name || "Attachment",
+        uri: attachment?.uri,
+        type: attachment?.type || "file",
+      },
+    ]);
+  }, []);
+
+  const handleRemoveAttachment = useCallback((attachmentId) => {
+    setAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
+  }, []);
+
+  const handleCaptureBill = useCallback(async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert("Permission required", "Please allow camera access to take a photo.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets?.length) {
+        const asset = result.assets[0];
+        appendAttachment({
+          name: asset.fileName || "captured-photo.jpg",
+          uri: asset.uri,
+          type: asset.mimeType || asset.type || "image",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to capture attachment", error);
+      Alert.alert("Error", "Unable to open the camera right now.");
+    }
+  }, [appendAttachment]);
+
+  const handlePickBillFromLibrary = useCallback(async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert(
+          "Permission required",
+          "Media library access is needed to select an existing photo."
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets?.length) {
+        const asset = result.assets[0];
+        appendAttachment({
+          name: asset.fileName || "attachment",
+          uri: asset.uri,
+          type: asset.mimeType || asset.type || "image",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to pick attachment", error);
+      Alert.alert("Error", "Unable to access the gallery right now.");
+    }
+  }, [appendAttachment]);
+
+  const handlePickDocument = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result?.canceled || result?.type === "cancel") {
+        return;
+      }
+
+      const asset = Array.isArray(result?.assets) ? result.assets[0] : result;
+      if (asset?.uri) {
+        appendAttachment({
+          name: asset.name || "document",
+          uri: asset.uri,
+          type: asset.mimeType || "application/pdf",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to pick document", error);
+      Alert.alert("Error", "Unable to open the document picker right now.");
+    }
+  }, [appendAttachment]);
+
+  const handleAddItem = useCallback(() => {
+    if (!newItemName.trim()) {
+      Alert.alert("Missing item", "Please enter an item name.");
+      return;
+    }
+    const numericAmount = newItemAmount ? Number(newItemAmount.replace(/,/g, "")) : null;
+    if (newItemAmount && Number.isNaN(numericAmount)) {
+      Alert.alert("Invalid amount", "Please enter a valid amount.");
+      return;
+    }
+    setItems((prev) => [
+      ...prev,
+      {
+        id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: newItemName.trim(),
+        amount: numericAmount,
+      },
+    ]);
+    setNewItemName("");
+    setNewItemAmount("");
+    setItemModalVisible(false);
+  }, [newItemAmount, newItemName]);
+
+  const handleRemoveItem = useCallback((itemId) => {
+    setItems((prev) => prev.filter((item) => item.id !== itemId));
+  }, []);
+
+  const openPicker = useCallback(
+    (mode) => {
+      const baseDate = currentDateTime;
+      if (Platform.OS === "android") {
+        DateTimePickerAndroid.open({
+          mode,
+          value: baseDate,
+          is24Hour: false,
+          onChange: (_, selectedDate) => {
+            if (!selectedDate) {
+              return;
+            }
+            if (mode === "date") {
+              setDate(formatDisplayDate(selectedDate));
+            } else {
+              setTime(formatDisplayTime(selectedDate));
+            }
+          },
+        });
+        return;
+      }
+      setInlinePickerMode(mode);
+      setInlinePickerValue(baseDate);
+      setInlinePickerVisible(true);
+    },
+    [currentDateTime]
+  );
+
+  const handleInlinePickerConfirm = useCallback(() => {
+    if (inlinePickerMode === "date") {
+      setDate(formatDisplayDate(inlinePickerValue));
+    } else {
+      setTime(formatDisplayTime(inlinePickerValue));
+    }
+    setInlinePickerVisible(false);
+  }, [inlinePickerMode, inlinePickerValue]);
+
+  const handleInlinePickerChange = useCallback((_, selectedDate) => {
+    if (selectedDate) {
+      setInlinePickerValue(selectedDate);
+    }
+  }, []);
+
+  const handleInlinePickerCancel = useCallback(() => {
+    setInlinePickerVisible(false);
+  }, []);
+
+  const handleDatePress = useCallback(() => {
+    openPicker("date");
+  }, [openPicker]);
+
+  const handleTimePress = useCallback(() => {
+    openPicker("time");
+  }, [openPicker]);
+
   const handleSave = useCallback(async () => {
     if (!income) {
       Alert.alert("Missing amount", "Please enter an amount to continue.");
@@ -151,6 +374,8 @@ export default function AddIncomeScreen({ navigation }) {
       time,
       createdAt: parseDateTimeToISO(date, time),
       currency: account.currency,
+      attachments,
+      items,
     };
 
     try {
@@ -192,6 +417,8 @@ export default function AddIncomeScreen({ navigation }) {
     paymentMethod,
     reminder,
     time,
+    attachments,
+    items,
   ]);
 
   return (
@@ -285,37 +512,91 @@ export default function AddIncomeScreen({ navigation }) {
           </View>
 
           <View style={styles.gridRow}>
-            <TouchableOpacity style={styles.actionButton} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.85}
+              onPress={() => setAttachmentPickerVisible(true)}
+            >
               <MaterialIcons name="photo-camera" size={22} color="#0288D1" />
               <Text style={styles.actionButtonText}>Add Bills</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.85}
+              onPress={() => setItemModalVisible(true)}
+            >
               <MaterialIcons name="format-list-bulleted" size={22} color="#0288D1" />
               <Text style={styles.actionButtonText}>Add Items</Text>
             </TouchableOpacity>
           </View>
 
+          {attachments.length > 0 ? (
+            <View style={styles.attachmentList}>
+              {attachments.map((file) => (
+                <View key={file.id} style={styles.attachmentItem}>
+                  <MaterialIcons
+                    name={file.type?.includes("pdf") ? "description" : "attach-file"}
+                    size={20}
+                    color="#0288D1"
+                  />
+                  <View style={styles.attachmentInfo}>
+                    <Text style={styles.attachmentName} numberOfLines={1}>
+                      {file.name}
+                    </Text>
+                    <Text style={styles.attachmentMeta}>{file.type}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveAttachment(file.id)}
+                    style={styles.attachmentRemove}
+                    accessibilityLabel="Remove attachment"
+                  >
+                    <MaterialIcons name="close" size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {items.length > 0 ? (
+            <View style={styles.itemsList}>
+              {items.map((item) => (
+                <View key={item.id} style={styles.itemRow}>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    {item.amount !== null ? (
+                      <Text style={styles.itemAmount}>{formatItemAmount(item.amount)}</Text>
+                    ) : (
+                      <Text style={styles.itemAmountMuted}>No amount</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveItem(item.id)}
+                    accessibilityLabel={`Remove ${item.name}`}
+                  >
+                    <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           <View style={styles.gridRow}>
-            <View style={styles.dateCard}>
-              <View style={styles.dateInner}>
-                <TouchableOpacity style={styles.dateButton}>
-                  <MaterialIcons name="chevron-left" size={20} color="#374151" />
-                </TouchableOpacity>
-                <TextInput
-                  value={dateLabel}
-                  onChangeText={setDate}
-                  style={styles.dateInput}
-                />
-                <TouchableOpacity style={styles.dateButton}>
-                  <MaterialIcons name="chevron-right" size={20} color="#374151" />
-                </TouchableOpacity>
-              </View>
+            <TouchableOpacity
+              style={styles.dateCard}
+              activeOpacity={0.85}
+              onPress={handleDatePress}
+            >
               <MaterialIcons name="calendar-today" size={22} color="#0288D1" />
-            </View>
-            <View style={styles.dateCard}>
-              <TextInput value={time} onChangeText={setTime} style={styles.timeInput} />
+              <Text style={styles.dateInput}>{dateLabel || "Select date"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dateCard}
+              activeOpacity={0.85}
+              onPress={handleTimePress}
+            >
               <MaterialIcons name="access-time" size={22} color="#0288D1" />
-            </View>
+              <Text style={styles.timeInput}>{time}</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.section}>
@@ -365,6 +646,89 @@ export default function AddIncomeScreen({ navigation }) {
                 </TouchableOpacity>
               )}
             />
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={isAttachmentPickerVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setAttachmentPickerVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add bill</Text>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setAttachmentPickerVisible(false);
+                handleCaptureBill();
+              }}
+            >
+              <MaterialIcons name="photo-camera" size={20} color="#0288D1" />
+              <Text style={styles.modalOptionText}>Take a photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setAttachmentPickerVisible(false);
+                handlePickBillFromLibrary();
+              }}
+            >
+              <MaterialIcons name="image" size={20} color="#0288D1" />
+              <Text style={styles.modalOptionText}>Choose from gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setAttachmentPickerVisible(false);
+                handlePickDocument();
+              }}
+            >
+              <MaterialIcons name="picture-as-pdf" size={20} color="#0288D1" />
+              <Text style={styles.modalOptionText}>Upload PDF/image</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalOption, styles.modalCloseOption]}
+              onPress={() => setAttachmentPickerVisible(false)}
+            >
+              <MaterialIcons name="close" size={20} color="#6B7280" />
+              <Text style={styles.modalOptionText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={isItemModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setItemModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add item</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Item name"
+              value={newItemName}
+              onChangeText={setNewItemName}
+            />
+            <TextInput
+              style={[styles.modalInput, styles.modalInputSpacing]}
+              placeholder="Amount (optional)"
+              keyboardType="decimal-pad"
+              value={newItemAmount}
+              onChangeText={setNewItemAmount}
+            />
+            <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleAddItem}>
+              <Text style={styles.modalPrimaryButtonText}>Save Item</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalSecondaryButton}
+              onPress={() => setItemModalVisible(false)}
+            >
+              <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -437,6 +801,32 @@ export default function AddIncomeScreen({ navigation }) {
               />
               <TouchableOpacity onPress={handleAddPaymentMethod} style={styles.modalAddButton}>
                 <Text style={styles.modalAddButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={isInlinePickerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleInlinePickerCancel}
+      >
+        <View style={styles.pickerModal}>
+          <View style={styles.pickerContent}>
+            <DateTimePicker
+              value={inlinePickerValue}
+              mode={inlinePickerMode}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleInlinePickerChange}
+              style={styles.pickerComponent}
+            />
+            <View style={styles.pickerActions}>
+              <TouchableOpacity style={styles.pickerButton} onPress={handleInlinePickerCancel}>
+                <Text style={styles.pickerButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.pickerButton, styles.pickerConfirm]} onPress={handleInlinePickerConfirm}>
+                <Text style={[styles.pickerButtonText, styles.pickerConfirmText]}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -582,21 +972,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#D1D5DB",
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  dateInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flex: 1,
-  },
-  dateButton: {
-    padding: 4,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   dateInput: {
     flex: 1,
-    textAlign: "center",
     fontSize: 14,
     color: "#111827",
   },
@@ -664,5 +1044,152 @@ const styles = StyleSheet.create({
   modalAddButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  attachmentList: {
+    marginTop: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+    gap: 12,
+  },
+  attachmentItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  attachmentInfo: {
+    flex: 1,
+  },
+  attachmentName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  attachmentMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  attachmentRemove: {
+    padding: 4,
+  },
+  itemsList: {
+    marginTop: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+    gap: 12,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  itemInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  itemAmount: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0288D1",
+    marginTop: 4,
+  },
+  itemAmountMuted: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 4,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+    color: "#111827",
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+  },
+  modalOptionText: {
+    fontSize: 14,
+    color: "#111827",
+  },
+  modalCloseOption: {
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    marginTop: 8,
+    paddingTop: 12,
+  },
+  modalInputSpacing: {
+    marginTop: 12,
+  },
+  modalPrimaryButton: {
+    backgroundColor: "#0288D1",
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: "center",
+  },
+  modalPrimaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  modalSecondaryButton: {
+    marginTop: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  modalSecondaryButtonText: {
+    color: "#6B7280",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  pickerModal: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pickerContent: {
+    width: "80%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+  },
+  pickerComponent: {
+    width: "100%",
+  },
+  pickerActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 16,
+  },
+  pickerButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  pickerButtonText: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  pickerConfirm: {
+    backgroundColor: "#0288D1",
+    borderRadius: 8,
+  },
+  pickerConfirmText: {
+    color: "#FFFFFF",
   },
 });
