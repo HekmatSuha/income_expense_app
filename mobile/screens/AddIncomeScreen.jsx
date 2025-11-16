@@ -22,6 +22,11 @@ import {
   getIncomeCategories,
   DEFAULT_INCOME_CATEGORIES,
 } from "../services/categoryRepository";
+import {
+  DEFAULT_PAYMENT_METHODS,
+  addPaymentMethodStore,
+  getPaymentMethodsStore,
+} from "../services/paymentMethodRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -179,7 +184,7 @@ export default function AddIncomeScreen({ navigation }) {
   const [categories, setCategories] = useState(DEFAULT_INCOME_CATEGORIES);
   const [isCategoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [newCategory, setNewCategory] = useState('');
-  const [paymentMethods, setPaymentMethods] = useState(['Cash', 'Bank']);
+  const [paymentMethods, setPaymentMethods] = useState(DEFAULT_PAYMENT_METHODS);
   const [isPaymentMethodPickerVisible, setPaymentMethodPickerVisible] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -243,12 +248,28 @@ export default function AddIncomeScreen({ navigation }) {
     }
   }, []);
 
+  const loadPaymentMethods = useCallback(async () => {
+    try {
+      const stored = await getPaymentMethodsStore();
+      setPaymentMethods(stored);
+      if (stored.length > 0) {
+        setPaymentMethod(stored[0]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch payment methods", error);
+      setPaymentMethods(DEFAULT_PAYMENT_METHODS);
+      setPaymentMethod(DEFAULT_PAYMENT_METHODS[0]);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadBankAccounts();
       loadIncomeCategories();
-    }, [loadBankAccounts, loadIncomeCategories])
+      loadPaymentMethods();
+    }, [loadBankAccounts, loadIncomeCategories, loadPaymentMethods])
   );
+
 
   const handleIncomeChange = (text) => {
     // Remove non-numeric characters except for a single decimal point
@@ -300,19 +321,26 @@ export default function AddIncomeScreen({ navigation }) {
     setCategoryPickerVisible(false);
   }, [newCategory]);
 
-  const handleAddPaymentMethod = useCallback(() => {
+  const handleAddPaymentMethod = useCallback(async () => {
     const trimmed = newPaymentMethod.trim();
     if (!trimmed) {
       Alert.alert("Missing payment method", "Please enter a payment method name.");
       return;
     }
 
-    setPaymentMethods((prev) => {
-      if (prev.includes(trimmed)) {
-        return prev;
-      }
-      return [...prev, trimmed];
-    });
+    try {
+      const updated = await addPaymentMethodStore(trimmed);
+      setPaymentMethods(updated);
+    } catch (error) {
+      console.error("Failed to save payment method", error);
+      setPaymentMethods((prev) => {
+        const lower = trimmed.toLowerCase();
+        const filtered = prev.filter((item) => item.toLowerCase() !== lower);
+        return [trimmed, ...filtered];
+      });
+      Alert.alert("Error", "Unable to save this method right now. Added locally instead.");
+    }
+
     setPaymentMethod(trimmed);
     setNewPaymentMethod("");
     setPaymentMethodPickerVisible(false);
@@ -871,19 +899,6 @@ export default function AddIncomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Recurring? Set Reminder</Text>
-            <View style={styles.inputWithIcon}>
-              <TextInput
-                value={reminder}
-                onChangeText={setReminder}
-                placeholder=""
-                style={styles.textInput}
-                placeholderTextColor="#9CA3AF"
-              />
-              <MaterialIcons name="calendar-month" size={22} color="#0288D1" />
-            </View>
-          </View>
         </ScrollView>
       </View>
 
@@ -1215,8 +1230,11 @@ export default function AddIncomeScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.calendarWeekRow}>
-                  {DAY_LABELS.map((label) => (
-                    <Text key={label} style={styles.calendarWeekDay}>
+                  {DAY_LABELS.map((label, index) => (
+                    <Text
+                      key={`weekday-${label}-${index}`}
+                      style={styles.calendarWeekDay}
+                    >
                       {label}
                     </Text>
                   ))}
