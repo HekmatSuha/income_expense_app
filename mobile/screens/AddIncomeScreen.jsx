@@ -653,18 +653,15 @@ export default function AddIncomeScreen({ navigation }) {
 
   const handleSave = useCallback(async () => {
     if (!income) {
-      Alert.alert("Missing amount", "Please enter an amount to continue.");
-      return;
-    }
-
-    if (!account) {
-      Alert.alert("Missing account", "Please select an account to continue.");
-      return;
+      return Alert.alert("Missing amount", "Please enter an amount to continue.");
     }
 
     if (!category) {
-      Alert.alert("Missing category", "Please select a category to continue.");
-      return;
+      return Alert.alert("Missing category", "Please select a category to continue.");
+    }
+
+    if (!account) {
+      return Alert.alert("Missing account", "Please select an account to continue.");
     }
 
     const payload = {
