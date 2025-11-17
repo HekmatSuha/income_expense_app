@@ -71,7 +71,7 @@ export default function BankAccountsScreen({ navigation }) {
   const handleAddAccount = useCallback(async () => {
     const trimmedName = name.trim();
     const trimmedType = type.trim();
-    const parsedBalance = Number(balance);
+    const parsedBalance = Number(balance.replace(/,/g, ""));
 
     if (!trimmedName || !trimmedType || Number.isNaN(parsedBalance)) {
       setFormError("Please provide a name, type, and numeric balance.");
