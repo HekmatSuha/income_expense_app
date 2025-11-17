@@ -1,14 +1,37 @@
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, query } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 const getBankAccountsCollection = (userId) => {
   return collection(db, "users", userId, "bankAccounts");
 };
 
+const AUTH_TIMEOUT = 5000;
+const NOT_AUTHENTICATED_ERROR = "auth/not-authenticated";
+
+const waitForAuthenticatedUser = () =>
+  new Promise((resolve) => {
+    const existingUser = auth.currentUser;
+    if (existingUser) {
+      resolve(existingUser);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const poll = setInterval(() => {
+      const currentUser = auth.currentUser;
+      const isTimeoutReached = Date.now() - startedAt >= AUTH_TIMEOUT;
+
+      if (currentUser || isTimeoutReached) {
+        clearInterval(poll);
+        resolve(currentUser || null);
+      }
+    }, 100);
+  });
+
 export const addBankAccount = async (bankAccount) => {
-  const user = auth.currentUser;
+  const user = await waitForAuthenticatedUser();
   if (!user) {
-    throw new Error("User not authenticated");
+    throw new Error(NOT_AUTHENTICATED_ERROR);
   }
 
   const bankAccountsCollection = getBankAccountsCollection(user.uid);
@@ -17,7 +40,10 @@ export const addBankAccount = async (bankAccount) => {
 };
 
 export const getBankAccounts = async () => {
-  const user = auth.currentUser;
+  const user = await waitForAuthenticatedUser().catch((error) => {
+    console.warn("Failed to determine authenticated user", error);
+    return null;
+  });
   if (!user) {
     return [];
   }
