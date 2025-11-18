@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -18,6 +19,10 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const keyboardVerticalOffset = useMemo(
+    () => (Platform.OS === "android" ? (StatusBar.currentHeight || 0) + 24 : 0),
+    []
+  );
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -42,66 +47,74 @@ export default function LoginScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.select({ ios: "padding", android: undefined })}
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={keyboardVerticalOffset}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>
-            Log in to continue monitoring your spending and savings goals.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign in</Text>
-          <TextInput
-            placeholder="Email"
-            placeholderTextColor="#8A8FA6"
-            autoCapitalize="none"
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor="#8A8FA6"
-            value={password}
-            secureTextEntry
-            style={styles.input}
-            onChangeText={setPassword}
-          />
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("ForgotPassword")}
-            style={styles.tertiaryAction}
-            disabled={loading}
-          >
-            <Text style={styles.tertiaryActionText}>
-              Forgot password?
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome back</Text>
+            <Text style={styles.subtitle}>
+              Log in to continue monitoring your spending and savings goals.
             </Text>
-          </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              loading && styles.primaryButtonDisabled,
-            ]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <Text style={styles.primaryButtonText}>
-              {loading ? "Signing in..." : "Log in"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Sign in</Text>
+            <TextInput
+              placeholder="Email"
+              placeholderTextColor="#8A8FA6"
+              autoCapitalize="none"
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              returnKeyType="next"
+            />
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor="#8A8FA6"
+              value={password}
+              secureTextEntry
+              style={styles.input}
+              onChangeText={setPassword}
+              returnKeyType="done"
+            />
 
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Register")}
-            style={styles.secondaryAction}
-            disabled={loading}
-          >
-            <Text style={styles.secondaryActionText}>Need an account? Sign up</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("ForgotPassword")}
+              style={styles.tertiaryAction}
+              disabled={loading}
+            >
+              <Text style={styles.tertiaryActionText}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                loading && styles.primaryButtonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <Text style={styles.primaryButtonText}>
+                {loading ? "Signing in..." : "Log in"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Register")}
+              style={styles.secondaryAction}
+              disabled={loading}
+            >
+              <Text style={styles.secondaryActionText}>Need an account? Sign up</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -112,8 +125,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0F172A",
   },
-  container: {
+  flex: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: "space-between",
   },
