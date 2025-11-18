@@ -19,6 +19,19 @@ requiredFirebaseKeys.forEach((key) => {
 const baseExpoConfig = appJson?.expo ?? {};
 
 export default ({ config }) => ({
+  // Spread incoming config first
   ...config,
+
+  // Spread values from app.json next
   ...baseExpoConfig,
+
+  // Your custom app settings
+  name: "Income Expense",
+  slug: "mobile",
+
+  // ANDROID MUST COME AFTER spreads so it doesn't get overwritten
+  android: {
+    package: "com.hekmatsuha.incomeexpense",
+    versionCode: 1,
+  },
 });
