@@ -18,10 +18,6 @@ import {
   subscribeToRemoteTransactions,
 } from "../services/transactions";
 import {
-  getBudgetForUser,
-  setBudgetForUser,
-} from "../storage/budget";
-import {
   LOCAL_USER_ID,
   getTransactionsForUser,
   setTransactionsForUser,
