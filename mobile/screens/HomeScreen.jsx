@@ -6,6 +6,8 @@ import {
   Text as RNText,
   TouchableOpacity as RNTouchableOpacity,
   RefreshControl,
+  Modal,
+  TextInput as RNTextInput,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -17,7 +19,7 @@ import {
 } from "../services/transactions";
 import {
   getBudgetForUser,
-  saveBudgetForUser,
+  setBudgetForUser,
 } from "../storage/budget";
 import {
   LOCAL_USER_ID,
@@ -25,12 +27,15 @@ import {
   setTransactionsForUser,
 } from "../storage/transactions";
 import Navigation from "../components/Navigation";
+import { currencies } from "../constants/currencies";
+import { getBudgetForUser, setBudgetForUser } from "../storage/budget";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
 const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
+const TextInput = styled(RNTextInput);
 
 const quickActions = [
   {
@@ -177,6 +182,11 @@ export default function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [monthlyBudget, setMonthlyBudget] = useState(null);
+  const [isBudgetModalVisible, setBudgetModalVisible] = useState(false);
+  const [budgetAmountInput, setBudgetAmountInput] = useState("");
+  const [budgetCurrencyInput, setBudgetCurrencyInput] = useState(DEFAULT_CURRENCY);
+  const [budgetError, setBudgetError] = useState("");
+  const [isCurrencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const unsubscribeRef = useRef(null);
 
   const loadLocalTransactions = useCallback(async () => {
@@ -187,6 +197,17 @@ export default function HomeScreen({ navigation }) {
     } catch (error) {
       console.error("Failed to load local transactions", error);
       setTransactions([]);
+    }
+  }, []);
+
+  const loadBudget = useCallback(async () => {
+    try {
+      const userId = auth.currentUser?.uid || LOCAL_USER_ID;
+      const stored = await getBudgetForUser(userId);
+      setMonthlyBudget(stored);
+    } catch (error) {
+      console.warn("Failed to load monthly budget", error);
+      setMonthlyBudget(null);
     }
   }, []);
 
@@ -228,15 +249,7 @@ export default function HomeScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       loadData();
-      const userId = auth.currentUser?.uid || LOCAL_USER_ID;
-      getBudgetForUser(userId).then((budget) => {
-        if (budget) {
-          setMonthlyBudget(budget);
-        } else {
-          // For testing purposes, set a default budget if none is set
-          saveBudgetForUser(userId, 5000).then(setMonthlyBudget);
-        }
-      });
+      loadBudget();
 
       return () => {
         if (unsubscribeRef.current) {
@@ -244,9 +257,8 @@ export default function HomeScreen({ navigation }) {
           unsubscribeRef.current = null;
         }
       };
-    }, [loadData])
+    }, [loadData, loadBudget])
   );
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -337,32 +349,36 @@ export default function HomeScreen({ navigation }) {
   const todayNetDisplay = formatCurrencyAggregate(todaySummary.todayNetMap);
   const previousBalanceDisplay = formatCurrencyAggregate(todaySummary.previousBalanceMap);
   const totalBalanceDisplay = formatCurrencyAggregate(totalBalanceMap);
-  const currentMonthExpense = useMemo(() => {
+  const currentMonthExpenseMap = useMemo(() => {
     const now = new Date();
-    return transactions.reduce((acc, transaction) => {
+    const map = new Map();
+    transactions.forEach((transaction) => {
       const transactionDate = getTransactionDate(transaction);
       const { type, absolute } = getSignedAmounts(transaction);
       if (type === "EXPENSE" && transactionDate && isSameMonth(transactionDate, now)) {
-        return acc + absolute;
+        const currency = (transaction.currency || DEFAULT_CURRENCY).toUpperCase();
+        addToCurrencyMap(map, currency, absolute);
       }
-      return acc;
-    }, 0);
+    });
+    return map;
   }, [transactions]);
 
   const budgetSummary = useMemo(() => {
-    if (monthlyBudget == null) {
+    if (!monthlyBudget) {
       return { hasBudget: false };
     }
-    const remaining = monthlyBudget - currentMonthExpense;
+    const spent = currentMonthExpenseMap.get(monthlyBudget.currency) || 0;
+    const remaining = monthlyBudget.amount - spent;
     return {
       hasBudget: true,
-      budgetAmount: monthlyBudget,
-      spent: currentMonthExpense,
+      budgetAmount: monthlyBudget.amount,
+      budgetCurrency: monthlyBudget.currency,
+      spent,
       statusLabel: remaining >= 0 ? "Remaining" : "Exceeded by",
       statusAmount: Math.abs(remaining),
       statusClass: remaining >= 0 ? "text-income" : "text-expense",
     };
-  }, [monthlyBudget, currentMonthExpense]);
+  }, [monthlyBudget, currentMonthExpenseMap]);
 
   const recentTransactions = useMemo(() => {
     return [...transactions]
@@ -388,6 +404,42 @@ export default function HomeScreen({ navigation }) {
     });
     return Array.from(map.values());
   }, [transactions]);
+
+  const openBudgetModal = useCallback(() => {
+    if (monthlyBudget) {
+      setBudgetAmountInput(
+        String(monthlyBudget.amount ?? "").replace(/[^0-9.]/g, "")
+      );
+      setBudgetCurrencyInput(monthlyBudget.currency || DEFAULT_CURRENCY);
+    } else {
+      setBudgetAmountInput("");
+      setBudgetCurrencyInput(DEFAULT_CURRENCY);
+    }
+    setBudgetError("");
+    setBudgetModalVisible(true);
+  }, [monthlyBudget]);
+
+  const handleSaveBudget = useCallback(async () => {
+    const normalizedCurrency =
+      (budgetCurrencyInput || DEFAULT_CURRENCY).trim().toUpperCase() || DEFAULT_CURRENCY;
+    const numericAmount = Number(budgetAmountInput.replace(/,/g, ""));
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      setBudgetError("Enter a positive budget amount.");
+      return;
+    }
+    const userId = auth.currentUser?.uid || LOCAL_USER_ID;
+    const payload = {
+      amount: numericAmount,
+      currency: normalizedCurrency,
+    };
+    setMonthlyBudget(payload);
+    try {
+      await setBudgetForUser(userId, payload);
+    } catch (error) {
+      console.warn("Failed to save monthly budget", error);
+    }
+    setBudgetModalVisible(false);
+  }, [budgetAmountInput, budgetCurrencyInput]);
 
   const handleTabChange = useCallback(
     (tab) => {
@@ -559,20 +611,24 @@ export default function HomeScreen({ navigation }) {
             )}
           </View>
 
-          <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6">
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={openBudgetModal}
+            className="bg-card-light rounded-2xl shadow-md p-4 mt-6"
+          >
             <Text className="text-lg font-bold text-text-light mb-4">Monthly Budget</Text>
             {budgetSummary.hasBudget ? (
               <>
                 <View className="flex-row justify-between">
                   <Text className="text-sm text-text-secondary-light">Budget</Text>
                   <Text className="text-sm font-semibold text-text-light">
-                    {formatCurrency(budgetSummary.budgetAmount)}
+                    {formatCurrency(budgetSummary.budgetAmount, budgetSummary.budgetCurrency)}
                   </Text>
                 </View>
                 <View className="flex-row justify-between mt-2">
                   <Text className="text-sm text-text-secondary-light">Spent this month</Text>
                   <Text className="text-sm font-semibold text-expense">
-                    {formatCurrency(budgetSummary.spent)}
+                    {formatCurrency(budgetSummary.spent, budgetSummary.budgetCurrency)}
                   </Text>
                 </View>
                 <View className="flex-row justify-between mt-2">
@@ -580,19 +636,108 @@ export default function HomeScreen({ navigation }) {
                     {budgetSummary.statusLabel}
                   </Text>
                   <Text className={`text-sm font-bold ${budgetSummary.statusClass}`}>
-                    {formatCurrency(budgetSummary.statusAmount)}
+                    {formatCurrency(budgetSummary.statusAmount, budgetSummary.budgetCurrency)}
                   </Text>
                 </View>
               </>
             ) : (
               <Text className="text-sm text-text-secondary-light">
-                You haven't set a monthly budget yet. Once you define one, we'll track how much of
-                it you've spent and highlight any excess.
+                Set a monthly budget target by tapping this card. We'll track how much you've spent
+                in the selected currency and highlight any excess.
               </Text>
             )}
-          </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+      <Modal
+        visible={isBudgetModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setBudgetModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center px-4">
+          <View className="bg-white rounded-3xl w-full p-5">
+            <Text className="text-lg font-semibold text-text-light mb-4">
+              Set Monthly Budget
+            </Text>
+            <View className="space-y-4">
+              <View>
+                <Text className="text-sm text-text-secondary-light mb-1">Budget amount</Text>
+                <TextInput
+                  value={budgetAmountInput}
+                  onChangeText={(text) => setBudgetAmountInput(text.replace(/[^0-9.]/g, ""))}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  className="border border-gray-200 rounded-2xl px-4 py-3 text-base"
+                />
+              </View>
+              <View>
+                <Text className="text-sm text-text-secondary-light mb-1">Currency</Text>
+                <TouchableOpacity
+                  onPress={() => setCurrencyPickerVisible(true)}
+                  className="border border-gray-200 rounded-2xl px-4 py-3"
+                >
+                  <Text className="text-base font-semibold text-text-light">
+                    {budgetCurrencyInput}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {budgetError ? (
+                <Text className="text-sm text-expense">{budgetError}</Text>
+              ) : null}
+              <View className="flex-row justify-end gap-3 pt-2">
+                <TouchableOpacity
+                  onPress={() => {
+                    setBudgetModalVisible(false);
+                    setBudgetError("");
+                  }}
+                  className="px-4 py-3 rounded-2xl border border-gray-200"
+                >
+                  <Text className="text-sm font-semibold text-text-secondary-light">Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSaveBudget}
+                  className="px-5 py-3 rounded-2xl bg-primary"
+                >
+                  <Text className="text-sm font-semibold text-white">Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={isCurrencyPickerVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCurrencyPickerVisible(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center px-4">
+          <View className="bg-white rounded-3xl w-full max-h-[70%]">
+            <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-100">
+              <Text className="text-base font-semibold text-text-light">Select currency</Text>
+              <TouchableOpacity onPress={() => setCurrencyPickerVisible(false)}>
+                <Text className="text-primary font-semibold">Close</Text>
+              </TouchableOpacity>
+            </View>
+            <RNScrollView style={{ maxHeight: 360 }}>
+              {currencies.map((item) => (
+                <TouchableOpacity
+                  key={item.value}
+                  onPress={() => {
+                    setBudgetCurrencyInput(item.value);
+                    setCurrencyPickerVisible(false);
+                  }}
+                  className="px-4 py-3 border-b border-gray-100"
+                >
+                  <Text className="text-sm font-semibold text-text-light">{item.value}</Text>
+                  <Text className="text-xs text-text-secondary-light">{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </RNScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
-
+}
