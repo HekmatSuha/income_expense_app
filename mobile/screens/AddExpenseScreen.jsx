@@ -10,6 +10,7 @@ import {
   Modal,
   FlatList,
   Linking,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -18,6 +19,8 @@ import { getBankAccounts } from "../services/bankAccountRepository";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
+import * as IntentLauncher from "expo-intent-launcher";
 import {
   addExpenseCategory as persistExpenseCategory,
   getExpenseCategories,
@@ -342,13 +345,21 @@ export default function AddExpenseScreen({ navigation }) {
   }, [newPaymentMethod]);
 
   const appendAttachment = useCallback((attachment) => {
+    const mimeType =
+      typeof attachment?.mimeType === "string"
+        ? attachment.mimeType
+        : typeof attachment?.type === "string" && attachment.type.includes("/")
+        ? attachment.type
+        : undefined;
+
     setAttachments((prev) => [
       ...prev,
       {
         id: attachment?.id || `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name: attachment?.name || "Attachment",
         uri: attachment?.uri,
-        type: attachment?.type || "file",
+        type: attachment?.type || mimeType || "file",
+        mimeType,
       },
     ]);
   }, []);
@@ -361,7 +372,31 @@ export default function AddExpenseScreen({ navigation }) {
     if (!file?.uri) {
       return;
     }
+
     try {
+      const mimeType =
+        (typeof file?.mimeType === "string" && file.mimeType) ||
+        (typeof file?.type === "string" && file.type.includes("/") && file.type) ||
+        "*/*";
+
+      if (Platform.OS === "android") {
+        const isLocalContent =
+          file.uri.startsWith("file://") || file.uri.startsWith("content://");
+
+        if (isLocalContent) {
+          let androidUri = file.uri;
+          if (androidUri.startsWith("file://")) {
+            androidUri = await FileSystem.getContentUriAsync(androidUri);
+          }
+          await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.VIEW, {
+            data: androidUri,
+            flags: IntentLauncher.ActivityFlags.GRANT_READ_URI_PERMISSION,
+            type: mimeType,
+          });
+          return;
+        }
+      }
+
       const supported = await Linking.canOpenURL(file.uri);
       if (!supported) {
         Alert.alert(
@@ -393,6 +428,7 @@ export default function AddExpenseScreen({ navigation }) {
           name: asset.fileName || "captured-photo.jpg",
           uri: asset.uri,
           type: asset.mimeType || asset.type || "image",
+          mimeType: asset.mimeType,
         });
       }
     } catch (error) {
@@ -421,6 +457,7 @@ export default function AddExpenseScreen({ navigation }) {
           name: asset.fileName || "attachment",
           uri: asset.uri,
           type: asset.mimeType || asset.type || "image",
+          mimeType: asset.mimeType,
         });
       }
     } catch (error) {
@@ -447,6 +484,7 @@ export default function AddExpenseScreen({ navigation }) {
           name: asset.name || "document",
           uri: asset.uri,
           type: asset.mimeType || "application/pdf",
+          mimeType: asset.mimeType || "application/pdf",
         });
       }
     } catch (error) {
