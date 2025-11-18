@@ -95,6 +95,22 @@ export const ensureUserDocument = async (userId) => {
   );
 };
 
+export const addTransaction = async (userId, transaction) => {
+  const normalizedTransaction = {
+    ...buildBaseTransaction(transaction),
+    userId: ensureUserId(userId),
+  };
+  await ensureUserDocument(userId);
+  const docRef = await addDoc(
+    getUserTransactionsCollection(userId),
+    normalizedTransaction
+  );
+  return {
+    id: docRef.id,
+    ...normalizedTransaction,
+  };
+};
+
 export const createRemoteTransaction = async (userId, transaction) => {
   const normalizedTransaction = {
     ...buildBaseTransaction(transaction),

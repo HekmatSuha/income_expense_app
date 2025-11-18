@@ -12,13 +12,17 @@ import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
 import { auth } from "../firebase";
-import { subscribeToRemoteTransactions } from "../services/transactions";
+import {
+  addTransaction,
+  subscribeToRemoteTransactions,
+} from "../services/transactions";
 import {
   LOCAL_USER_ID,
   getTransactionsForUser,
   setTransactionsForUser,
 } from "../storage/transactions";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import AddTransaction from "../components/AddTransaction";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -33,6 +37,43 @@ const formatCurrency = (value) => {
   return numeric.toLocaleString();
 };
 
+const Transaction = ({ transaction }) => {
+  const { category, amount, type, time } = transaction;
+  const isIncome = type === "INCOME";
+
+  const iconMap = {
+    Food: "coffee",
+    Shopping: "shopping-cart",
+    Transport: "truck",
+    Home: "home",
+    Default: "dollar-sign",
+  };
+
+  const iconName = iconMap[category] || iconMap.Default;
+
+  return (
+    <View className="flex-row items-center justify-between p-4 border-b border-gray-100">
+      <View className="flex-row items-center gap-4">
+        <View className="p-2 bg-gray-200 rounded-full">
+          <Feather name={iconName} size={20} color="#1f2937" />
+        </View>
+        <View>
+          <Text className="text-gray-800 font-semibold">{category}</Text>
+          <Text className="text-gray-500 text-xs">{time}</Text>
+        </View>
+      </View>
+      <Text
+        className={`font-semibold ${
+          isIncome ? "text-green-500" : "text-red-500"
+        }`}
+      >
+        {isIncome ? "+" : "-"}
+        {formatCurrency(amount)}
+      </Text>
+    </View>
+  );
+};
+
 export default function TransactionsScreen() {
   const navigation = useNavigation();
   const [activeFilter, setActiveFilter] = useState("All");
@@ -42,6 +83,8 @@ export default function TransactionsScreen() {
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [isSettingStartDate, setIsSettingStartDate] = useState(true);
+  const [isAddTransactionModalVisible, setAddTransactionModalVisible] =
+    useState(false);
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
@@ -129,7 +172,8 @@ export default function TransactionsScreen() {
   }, [transactions, activeFilter, startDate, endDate]);
 
   const handleDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || (isSettingStartDate ? startDate : endDate);
+    const currentDate =
+      selectedDate || (isSettingStartDate ? startDate : endDate);
     setDatePickerVisible(false);
     if (isSettingStartDate) {
       setStartDate(currentDate);
@@ -141,6 +185,16 @@ export default function TransactionsScreen() {
   const showDatePicker = (isStart) => {
     setIsSettingStartDate(isStart);
     setDatePickerVisible(true);
+  };
+
+  const handleAddTransaction = async (transaction) => {
+    if (uid) {
+      await addTransaction(uid, transaction);
+    } else {
+      const newTransactions = [...transactions, transaction];
+      setTransactions(newTransactions);
+      await setTransactionsForUser(LOCAL_USER_ID, newTransactions);
+    }
   };
 
   const formatDateTime = useCallback((value) => {
@@ -211,11 +265,25 @@ export default function TransactionsScreen() {
     [totalIncome, totalExpense]
   );
 
+  const groupedTransactions = useMemo(() => {
+    const groups = {};
+    filteredTransactions.forEach((transaction) => {
+      const { date, time } = formatDateTime(
+        transaction.date ?? transaction.createdAt
+      );
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push({ ...transaction, time });
+    });
+    return groups;
+  }, [filteredTransactions, formatDateTime]);
+
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <View className="flex-1 bg-gray-100">
-        <View className="bg-blue-500">
-          <View className="flex-row items-center justify-between px-4 py-4">
+        <View className="bg-white shadow-sm">
+          <View className="flex-row items-center justify-between px-4 py-3">
             <View className="flex-row items-center gap-4">
               <TouchableOpacity
                 className="p-2"
@@ -226,189 +294,29 @@ export default function TransactionsScreen() {
                   }
                 }}
               >
-                <Feather name="arrow-left" size={24} color="#FFFFFF" />
+                <Feather name="arrow-left" size={24} color="#1f2937" />
               </TouchableOpacity>
-              <Text className="text-white text-xl font-semibold">
+              <Text className="text-gray-800 text-xl font-semibold">
                 Transactions
               </Text>
             </View>
-            <View className="flex-row items-center gap-4">
-              <TouchableOpacity className="p-2" activeOpacity={0.7}>
-                <Feather name="search" size={22} color="#FFFFFF" />
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                className="p-2"
+                activeOpacity={0.7}
+                onPress={() => setAddTransactionModalVisible(true)}
+              >
+                <Feather name="plus" size={22} color="#1f2937" />
               </TouchableOpacity>
               <TouchableOpacity className="p-2" activeOpacity={0.7}>
-                <Feather name="menu" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity className="p-2" activeOpacity={0.7}>
-                <Feather name="more-vertical" size={22} color="#FFFFFF" />
+                <Feather name="search" size={22} color="#1f2937" />
               </TouchableOpacity>
             </View>
           </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
-          >
-            <View className="flex-row gap-3">
-              {timeFilters.map((filter) => {
-                const isActive = activeFilter === filter;
-                return (
-                  <TouchableOpacity
-                    key={filter}
-                    className={`px-4 py-2 rounded-full ${
-                      isActive ? "bg-white" : "bg-blue-400"
-                    }`}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      if (filter === "Custom") {
-                        setDatePickerVisible(true);
-                      }
-                      setActiveFilter(filter);
-                    }}
-                  >
-                    <Text
-                      className={`${
-                        isActive ? "text-blue-500" : "text-white"
-                      } text-sm font-medium`}
-                    >
-                      {filter}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </ScrollView>
         </View>
 
-        <View className="bg-blue-500">
-          <Text className="text-white text-center py-3 text-base font-medium">
-            {activeFilter}
-          </Text>
-        </View>
-
-        <Modal
-          visible={isDatePickerVisible}
-          transparent={true}
-          animationType="slide"
-        >
-          <View className="flex-1 justify-center items-center bg-black/50">
-            <View className="bg-white rounded-lg p-5 w-5/6">
-              <Text className="text-lg font-bold mb-4">Select Date Range</Text>
-              <View className="flex-row justify-around mb-4">
-                <Button title="Start Date" onPress={() => showDatePicker(true)} />
-                <Button title="End Date" onPress={() => showDatePicker(false)} />
-              </View>
-              {isDatePickerVisible && (
-                <DateTimePicker
-                  value={isSettingStartDate ? startDate : endDate}
-                  mode="date"
-                  display="default"
-                  onChange={handleDateChange}
-                />
-              )}
-              <Button
-                title="Done"
-                onPress={() => setDatePickerVisible(false)}
-              />
-            </View>
-          </View>
-        </Modal>
-
-        <View className="flex-1">
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
-          >
-            <View className="bg-white">
-              <View className="flex-row items-center border-b border-gray-200 px-4 py-3 bg-gray-50">
-                <Text className="flex-1 text-xs font-semibold text-gray-600">
-                  Date
-                </Text>
-                <Text className="flex-1 text-xs font-semibold text-gray-600">
-                  Category
-                </Text>
-                <Text className="w-20 text-right text-xs font-semibold text-green-600">
-                  Income
-                </Text>
-                <Text className="w-20 text-right text-xs font-semibold text-red-600">
-                  Expense
-                </Text>
-              </View>
-
-              {filteredTransactions.map((transaction, index) => {
-                const isLast = index === filteredTransactions.length - 1;
-                const { date, time } = formatDateTime(
-                  transaction.date ?? transaction.createdAt
-                );
-                const isIncome = normalizeType(transaction.type) === "INCOME";
-                return (
-                  <View
-                    key={transaction.id}
-                    className={`border-b border-gray-100 ${
-                      !isLast ? "" : "border-transparent"
-                    }`}
-                  >
-                    <View className="flex-row items-start px-4 py-4 gap-3">
-                      <View className="flex-1">
-                        <Text className="text-sm text-gray-800">{date}</Text>
-                        <Text className="text-xs text-gray-500 mt-1">
-                          {time}
-                        </Text>
-                      </View>
-                      <Text className="flex-1 text-sm text-gray-800">
-                        {transaction.category}
-                      </Text>
-                      <Text
-                        className={`w-20 text-right text-sm font-bold ${
-                          isIncome ? "text-green-500" : "text-red-500"
-                        }`}
-                      >
-                        {isIncome ? "+" : "-"}
-                        {formatCurrency(transaction.amount)}
-                      </Text>
-                    </View>
-
-                    <View className="flex-row items-center justify-between px-4 pb-4">
-                      <View className="flex-row items-center gap-2">
-                        {transaction.paymentMethod ? (
-                          <View className="px-3 py-1 rounded-full border border-gray-300 bg-gray-100">
-                            <Text className="text-xs font-medium text-gray-700">
-                              {transaction.paymentMethod}
-                            </Text>
-                          </View>
-                        ) : null}
-                        {transaction.note ? (
-                          <Text className="text-xs text-gray-500">
-                            {transaction.note}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
-        </View>
-
-        <View className="bg-white border-t border-gray-200">
-          <View className="flex-row gap-3 px-4 py-4">
-            <TouchableOpacity
-              className="flex-1 h-12 rounded-lg items-center justify-center bg-green-500"
-              activeOpacity={0.85}
-            >
-              <Text className="text-white font-semibold">Income</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="flex-1 h-12 rounded-lg items-center justify-center bg-red-500"
-              activeOpacity={0.85}
-            >
-              <Text className="text-white font-semibold">Expense</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row border-t border-gray-200">
+        <View className="bg-white border-b border-gray-200">
+          <View className="flex-row">
             <View className="flex-1 items-center justify-center py-4 border-r border-gray-200">
               <Text className="text-xs text-gray-600">Total Income</Text>
               <Text className="text-green-600 text-base font-semibold">
@@ -429,6 +337,94 @@ export default function TransactionsScreen() {
             </View>
           </View>
         </View>
+
+        <View className="p-4 bg-white">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-3">
+              {timeFilters.map((filter) => (
+                <TouchableOpacity
+                  key={filter}
+                  className={`px-4 py-2 rounded-full ${
+                    activeFilter === filter ? "bg-blue-500" : "bg-gray-200"
+                  }`}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (filter === "Custom") {
+                      setDatePickerVisible(true);
+                    }
+                    setActiveFilter(filter);
+                  }}
+                >
+                  <Text
+                    className={`${
+                      activeFilter === filter ? "text-white" : "text-gray-700"
+                    } text-sm font-medium`}
+                  >
+                    {filter}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        <View className="flex-1">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 24 }}
+          >
+            {Object.keys(groupedTransactions).map((date) => (
+              <View key={date} className="mt-4">
+                <View className="px-4 py-2 bg-gray-200">
+                  <Text className="text-gray-600 font-semibold">{date}</Text>
+                </View>
+                {groupedTransactions[date].map((transaction) => (
+                  <Transaction
+                    key={transaction.id}
+                    transaction={transaction}
+                  />
+                ))}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        <Modal
+          visible={isDatePickerVisible}
+          transparent={true}
+          animationType="slide"
+        >
+          <View className="flex-1 justify-center items-center bg-black/50">
+            <View className="bg-white rounded-lg p-5 w-5/6">
+              <Text className="text-lg font-bold mb-4">Select Date Range</Text>
+              <View className="flex-row justify-around mb-4">
+                <Button
+                  title="Start Date"
+                  onPress={() => showDatePicker(true)}
+                />
+                <Button title="End Date" onPress={() => showDatePicker(false)} />
+              </View>
+              {isDatePickerVisible && (
+                <DateTimePicker
+                  value={isSettingStartDate ? startDate : endDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                />
+              )}
+              <Button
+                title="Done"
+                onPress={() => setDatePickerVisible(false)}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        <AddTransaction
+          isVisible={isAddTransactionModalVisible}
+          onClose={() => setAddTransactionModalVisible(false)}
+          onAddTransaction={handleAddTransaction}
+        />
       </View>
     </SafeAreaView>
   );
