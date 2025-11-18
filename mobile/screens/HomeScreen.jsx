@@ -15,6 +15,11 @@ import {
   fetchRemoteTransactions,
   subscribeToRemoteTransactions,
 } from "../services/transactions";
+import PaymentMethodChart from "../components/PaymentMethodChart";
+import {
+  getLocalBankAccounts,
+  setLocalBankAccounts,
+} from "../storage/bankAccounts";
 import {
   LOCAL_USER_ID,
   getTransactionsForUser,
@@ -131,9 +136,20 @@ const getSignedAmounts = (transaction) => {
 
 export default function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [monthlyBudget] = useState(null);
   const unsubscribeRef = useRef(null);
+
+  const loadLocalBankAccounts = useCallback(async () => {
+    try {
+      const localBankAccounts = await getLocalBankAccounts();
+      setBankAccounts(localBankAccounts);
+    } catch (error) {
+      console.error("Failed to load local bank accounts", error);
+      setBankAccounts([]);
+    }
+  }, []);
 
   const loadLocalTransactions = useCallback(async () => {
     try {
@@ -148,6 +164,7 @@ export default function HomeScreen({ navigation }) {
 
   const loadData = useCallback(() => {
     const userId = auth.currentUser?.uid;
+    loadLocalBankAccounts();
 
     if (!userId) {
       loadLocalTransactions();
@@ -180,7 +197,7 @@ export default function HomeScreen({ navigation }) {
 
     unsubscribeRef.current = unsubscribe;
     return unsubscribe;
-  }, [loadLocalTransactions]);
+  }, [loadLocalTransactions, loadLocalBankAccounts]);
 
   useFocusEffect(
     useCallback(() => {
@@ -199,6 +216,7 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(true);
     try {
       const userId = auth.currentUser?.uid;
+      loadLocalBankAccounts();
       if (!userId) {
         await loadLocalTransactions();
         return;
@@ -217,7 +235,7 @@ export default function HomeScreen({ navigation }) {
     } finally {
       setRefreshing(false);
     }
-  }, [loadLocalTransactions]);
+  }, [loadLocalTransactions, loadLocalBankAccounts]);
 
   const todaySummary = useMemo(() => {
     const today = new Date();
@@ -299,6 +317,28 @@ export default function HomeScreen({ navigation }) {
       )
       .slice(0, 3);
   }, [transactions]);
+
+  const paymentMethodDistribution = useMemo(() => {
+    const distribution = bankAccounts.map((account) => ({
+      name: account.name,
+      total: 0,
+      color: account.color || "#000000",
+      legendFontColor: "#7F7F7F",
+      legendFontSize: 15,
+    }));
+
+    transactions.forEach((transaction) => {
+      const account = distribution.find(
+        (acc) => acc.name === transaction.paymentAccount
+      );
+      if (account) {
+        const { signed } = getSignedAmounts(transaction);
+        account.total += signed;
+      }
+    });
+
+    return distribution.filter((account) => account.total > 0);
+  }, [transactions, bankAccounts]);
 
   const handleTabChange = useCallback(
     (tab) => {
@@ -477,6 +517,10 @@ export default function HomeScreen({ navigation }) {
                 it you've spent and highlight any excess.
               </Text>
             )}
+          </View>
+
+          <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6">
+            <PaymentMethodChart data={paymentMethodDistribution} />
           </View>
         </View>
       </ScrollView>
