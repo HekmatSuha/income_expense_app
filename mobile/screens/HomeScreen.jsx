@@ -15,11 +15,10 @@ import {
   fetchRemoteTransactions,
   subscribeToRemoteTransactions,
 } from "../services/transactions";
-import PaymentMethodChart from "../components/PaymentMethodChart";
 import {
-  getLocalBankAccounts,
-  setLocalBankAccounts,
-} from "../storage/bankAccounts";
+  getBudgetForUser,
+  saveBudgetForUser,
+} from "../storage/budget";
 import {
   LOCAL_USER_ID,
   getTransactionsForUser,
@@ -60,9 +59,49 @@ const quickActions = [
   },
 ];
 
-const formatCurrency = (value) => {
+const DEFAULT_CURRENCY = "USD";
+
+const formatNumber = (value) => {
   const numeric = Number(value) || 0;
-  return numeric.toLocaleString();
+  return numeric.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatCurrency = (value, currencyCode = DEFAULT_CURRENCY) => {
+  const code = currencyCode ? currencyCode.toUpperCase() : DEFAULT_CURRENCY;
+  return `${code} ${formatNumber(value)}`;
+};
+
+const addToCurrencyMap = (map, currencyCode, amount) => {
+  const code = currencyCode ? currencyCode.toUpperCase() : DEFAULT_CURRENCY;
+  map.set(code, (map.get(code) || 0) + amount);
+};
+
+const formatCurrencyAggregate = (map) => {
+  if (!map || map.size === 0) {
+    return formatCurrency(0);
+  }
+  const entries = Array.from(map.entries()).filter(([, value]) => value !== 0);
+  if (entries.length === 0) {
+    return formatCurrency(0);
+  }
+  return entries
+    .map(([currency, amount]) => formatCurrency(amount, currency))
+    .join(", ");
+};
+
+const mergeCurrencyMaps = (...maps) => {
+  return maps.reduce((acc, map) => {
+    if (!map) {
+      return acc;
+    }
+    map.forEach((value, currency) => {
+      addToCurrencyMap(acc, currency, value);
+    });
+    return acc;
+  }, new Map());
 };
 
 const formatDate = (value) => {
@@ -136,20 +175,9 @@ const getSignedAmounts = (transaction) => {
 
 export default function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
-  const [bankAccounts, setBankAccounts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [monthlyBudget] = useState(null);
+  const [monthlyBudget, setMonthlyBudget] = useState(null);
   const unsubscribeRef = useRef(null);
-
-  const loadLocalBankAccounts = useCallback(async () => {
-    try {
-      const localBankAccounts = await getLocalBankAccounts();
-      setBankAccounts(localBankAccounts);
-    } catch (error) {
-      console.error("Failed to load local bank accounts", error);
-      setBankAccounts([]);
-    }
-  }, []);
 
   const loadLocalTransactions = useCallback(async () => {
     try {
@@ -164,8 +192,6 @@ export default function HomeScreen({ navigation }) {
 
   const loadData = useCallback(() => {
     const userId = auth.currentUser?.uid;
-    loadLocalBankAccounts();
-
     if (!userId) {
       loadLocalTransactions();
       if (unsubscribeRef.current) {
@@ -197,11 +223,20 @@ export default function HomeScreen({ navigation }) {
 
     unsubscribeRef.current = unsubscribe;
     return unsubscribe;
-  }, [loadLocalTransactions, loadLocalBankAccounts]);
+  }, [loadLocalTransactions]);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
+      const userId = auth.currentUser?.uid || LOCAL_USER_ID;
+      getBudgetForUser(userId).then((budget) => {
+        if (budget) {
+          setMonthlyBudget(budget);
+        } else {
+          // For testing purposes, set a default budget if none is set
+          saveBudgetForUser(userId, 5000).then(setMonthlyBudget);
+        }
+      });
 
       return () => {
         if (unsubscribeRef.current) {
@@ -216,7 +251,6 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(true);
     try {
       const userId = auth.currentUser?.uid;
-      loadLocalBankAccounts();
       if (!userId) {
         await loadLocalTransactions();
         return;
@@ -235,37 +269,48 @@ export default function HomeScreen({ navigation }) {
     } finally {
       setRefreshing(false);
     }
-  }, [loadLocalTransactions, loadLocalBankAccounts]);
+  }, [loadLocalTransactions]);
 
   const todaySummary = useMemo(() => {
     const today = new Date();
     const summary = transactions.reduce(
       (acc, transaction) => {
         const transactionDate = getTransactionDate(transaction);
+        const currency = (transaction?.currency || DEFAULT_CURRENCY).toUpperCase();
         const { type, absolute, signed } = getSignedAmounts(transaction);
         const isForToday = transactionDate ? isSameDay(transactionDate, today) : false;
 
         if (isForToday) {
           if (type === "INCOME") {
-            acc.todayIncome += absolute;
-            acc.todayNet += signed;
+            acc.todayIncomeTotal += absolute;
+            addToCurrencyMap(acc.todayIncomeMap, currency, absolute);
+            acc.todayNetTotal += signed;
+            addToCurrencyMap(acc.todayNetMap, currency, signed);
           } else if (type === "EXPENSE") {
-            acc.todayExpense += absolute;
-            acc.todayNet += signed;
+            acc.todayExpenseTotal += absolute;
+            addToCurrencyMap(acc.todayExpenseMap, currency, -absolute);
+            acc.todayNetTotal += signed;
+            addToCurrencyMap(acc.todayNetMap, currency, signed);
           } else {
-            acc.todayNet += signed;
+            acc.todayNetTotal += signed;
+            addToCurrencyMap(acc.todayNetMap, currency, signed);
           }
         } else {
-          acc.previousBalance += signed;
+          acc.previousBalanceTotal += signed;
+          addToCurrencyMap(acc.previousBalanceMap, currency, signed);
         }
 
         return acc;
       },
       {
-        todayIncome: 0,
-        todayExpense: 0,
-        todayNet: 0,
-        previousBalance: 0,
+        todayIncomeTotal: 0,
+        todayExpenseTotal: 0,
+        todayNetTotal: 0,
+        previousBalanceTotal: 0,
+        todayIncomeMap: new Map(),
+        todayExpenseMap: new Map(),
+        todayNetMap: new Map(),
+        previousBalanceMap: new Map(),
         todayLabel: "",
       }
     );
@@ -274,15 +319,24 @@ export default function HomeScreen({ navigation }) {
   }, [transactions]);
 
   const totalBalance = useMemo(
-    () => todaySummary.previousBalance + todaySummary.todayNet,
-    [todaySummary.previousBalance, todaySummary.todayNet]
+    () => todaySummary.previousBalanceTotal + todaySummary.todayNetTotal,
+    [todaySummary.previousBalanceTotal, todaySummary.todayNetTotal]
   );
 
-  const todayBalanceClass = todaySummary.todayNet >= 0 ? "text-income" : "text-expense";
+  const totalBalanceMap = useMemo(
+    () => mergeCurrencyMaps(todaySummary.previousBalanceMap, todaySummary.todayNetMap),
+    [todaySummary.previousBalanceMap, todaySummary.todayNetMap]
+  );
+
+  const todayBalanceClass = todaySummary.todayNetTotal >= 0 ? "text-income" : "text-expense";
   const totalBalanceClass = totalBalance >= 0 ? "text-income" : "text-expense";
   const previousBalanceClass =
-    todaySummary.previousBalance >= 0 ? "text-income" : "text-expense";
-  const todayExpenseDisplay = todaySummary.todayExpense > 0 ? -todaySummary.todayExpense : 0;
+    todaySummary.previousBalanceTotal >= 0 ? "text-income" : "text-expense";
+  const todayIncomeDisplay = formatCurrencyAggregate(todaySummary.todayIncomeMap);
+  const todayExpenseDisplay = formatCurrencyAggregate(todaySummary.todayExpenseMap);
+  const todayNetDisplay = formatCurrencyAggregate(todaySummary.todayNetMap);
+  const previousBalanceDisplay = formatCurrencyAggregate(todaySummary.previousBalanceMap);
+  const totalBalanceDisplay = formatCurrencyAggregate(totalBalanceMap);
   const currentMonthExpense = useMemo(() => {
     const now = new Date();
     return transactions.reduce((acc, transaction) => {
@@ -318,27 +372,22 @@ export default function HomeScreen({ navigation }) {
       .slice(0, 3);
   }, [transactions]);
 
-  const paymentMethodDistribution = useMemo(() => {
-    const distribution = bankAccounts.map((account) => ({
-      name: account.name,
-      total: 0,
-      color: account.color || "#000000",
-      legendFontColor: "#7F7F7F",
-      legendFontSize: 15,
-    }));
-
+  const paymentMethodCurrencyTotals = useMemo(() => {
+    const map = new Map();
     transactions.forEach((transaction) => {
-      const account = distribution.find(
-        (acc) => acc.name === transaction.paymentAccount
-      );
-      if (account) {
-        const { signed } = getSignedAmounts(transaction);
-        account.total += signed;
+      const { type, absolute } = getSignedAmounts(transaction);
+      if (type !== "INCOME" || absolute <= 0) {
+        return;
       }
+      const method = (transaction.paymentMethod || "Other").trim() || "Other";
+      const currency = (transaction.currency || DEFAULT_CURRENCY).toUpperCase();
+      const key = `${method}:::${currency}`;
+      const current = map.get(key) || { method, currency, amount: 0 };
+      current.amount += absolute;
+      map.set(key, current);
     });
-
-    return distribution.filter((account) => account.total > 0);
-  }, [transactions, bankAccounts]);
+    return Array.from(map.values());
+  }, [transactions]);
 
   const handleTabChange = useCallback(
     (tab) => {
@@ -411,32 +460,32 @@ export default function HomeScreen({ navigation }) {
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Income</Text>
                 <Text className="text-lg font-bold text-income mt-1">
-                  {formatCurrency(todaySummary.todayIncome)}
+                  {todayIncomeDisplay}
                 </Text>
               </View>
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Expense</Text>
                 <Text className="text-lg font-bold text-expense mt-1">
-                  {formatCurrency(todayExpenseDisplay)}
+                  {todayExpenseDisplay}
                 </Text>
               </View>
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Balance</Text>
                 <Text className={`text-lg font-bold mt-1 ${todayBalanceClass}`}>
-                  {formatCurrency(todaySummary.todayNet)}
+                  {todayNetDisplay}
                 </Text>
               </View>
             </View>
             <View className="flex-row justify-between items-center mt-3">
               <Text className="text-sm text-text-secondary-light">Previous Balance</Text>
               <Text className={`text-sm font-semibold ${previousBalanceClass}`}>
-                {formatCurrency(todaySummary.previousBalance)}
+                {previousBalanceDisplay}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mt-2">
               <Text className="text-sm font-bold text-text-secondary-light">Total Balance</Text>
               <Text className={`text-sm font-bold ${totalBalanceClass}`}>
-                {formatCurrency(totalBalance)}
+                {totalBalanceDisplay}
               </Text>
             </View>
           </View>
@@ -472,7 +521,7 @@ export default function HomeScreen({ navigation }) {
                     </View>
                     <View className="items-end">
                       <Text className={`text-base font-bold ${getAmountClass(transaction.type)}`}>
-                        {formatCurrency(transaction.amount)}
+                        {formatCurrency(transaction.amount, transaction.currency)}
                       </Text>
                     </View>
                   </View>
@@ -484,6 +533,30 @@ export default function HomeScreen({ navigation }) {
                 <Text className="text-primary text-sm font-semibold">More →</Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6">
+            <Text className="text-lg font-bold text-text-light mb-4">Payment Methods</Text>
+            {paymentMethodCurrencyTotals.length === 0 ? (
+              <Text className="text-sm text-text-secondary-light">
+                No income has been recorded yet. Once money comes in, we'll summarize the total
+                received via each payment method and currency.
+              </Text>
+            ) : (
+              paymentMethodCurrencyTotals.map((item) => (
+                <View
+                  key={`${item.method}-${item.currency}`}
+                  className="flex-row justify-between items-center py-2 border-b border-gray-100"
+                >
+                  <Text className="text-sm text-text-secondary-light font-semibold">
+                    {item.method} ({item.currency})
+                  </Text>
+                  <Text className="text-sm font-bold text-income">
+                    {formatCurrency(item.amount, item.currency)}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
 
           <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6">
@@ -518,12 +591,8 @@ export default function HomeScreen({ navigation }) {
               </Text>
             )}
           </View>
-
-          <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6">
-            <PaymentMethodChart data={paymentMethodDistribution} />
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
-}
+
