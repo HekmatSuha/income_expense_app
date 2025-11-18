@@ -17,7 +17,7 @@ import DateTimePicker, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { getBankAccounts } from "../services/bankAccountRepository";
+import { adjustBankAccountBalance, getBankAccounts } from "../services/bankAccountRepository";
 import { persistTransaction } from "../services/transactionRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
@@ -138,8 +138,24 @@ export default function TransferScreen({ navigation }) {
     try {
       const accounts = await getBankAccounts();
       setBankAccounts(accounts);
-      setFromAccount(null);
-      setToAccount(null);
+      setFromAccount((prev) => {
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+          return null;
+        }
+        if (!prev) {
+          return accounts[0];
+        }
+        return accounts.find((item) => item.id === prev.id) || accounts[0];
+      });
+      setToAccount((prev) => {
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+          return null;
+        }
+        if (!prev) {
+          return accounts[1] || accounts[0];
+        }
+        return accounts.find((item) => item.id === prev.id) || accounts[1] || accounts[0];
+      });
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
     }
@@ -256,6 +272,13 @@ export default function TransferScreen({ navigation }) {
         transferTo: toAccount.name,
       });
       statuses.push(outgoing.status);
+      if (fromAccount?.id) {
+        try {
+          await adjustBankAccountBalance(fromAccount.id, -Math.abs(numericAmount));
+        } catch (balanceError) {
+          console.warn("Failed to decrease source account after transfer", balanceError);
+        }
+      }
 
       const incoming = await persistTransaction({
         ...sharedMeta,
@@ -265,6 +288,13 @@ export default function TransferScreen({ navigation }) {
         transferFrom: fromAccount.name,
       });
       statuses.push(incoming.status);
+      if (toAccount?.id) {
+        try {
+          await adjustBankAccountBalance(toAccount.id, Math.abs(numericAmount));
+        } catch (balanceError) {
+          console.warn("Failed to increase destination account after transfer", balanceError);
+        }
+      }
 
       if (statuses.includes("local-only")) {
         Alert.alert(

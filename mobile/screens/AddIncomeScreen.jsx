@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { persistTransaction } from "../services/transactionRepository";
-import { getBankAccounts } from "../services/bankAccountRepository";
+import { adjustBankAccountBalance, getBankAccounts } from "../services/bankAccountRepository";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -230,8 +230,19 @@ export default function AddIncomeScreen({ navigation }) {
     try {
       const accounts = await getBankAccounts();
       setBankAccounts(accounts);
+      setAccount((prev) => {
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+          return null;
+        }
+        if (!prev) {
+          return accounts[0];
+        }
+        const matched = accounts.find((item) => item.id === prev.id);
+        return matched || accounts[0];
+      });
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
+      setAccount((prev) => prev || null);
     }
   }, []);
 
@@ -702,8 +713,14 @@ export default function AddIncomeScreen({ navigation }) {
       return Alert.alert("Missing account", "Please select an account to continue.");
     }
 
+    const normalizedAmount = Number(income.replace(/,/g, ""));
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      Alert.alert("Invalid amount", "Please enter a valid amount greater than zero.");
+      return;
+    }
+
     const payload = {
-      amount: Number(income.replace(/,/g, '')), // Remove commas before saving
+      amount: normalizedAmount,
       type: "INCOME",
       category,
       note: notes,
@@ -719,6 +736,13 @@ export default function AddIncomeScreen({ navigation }) {
 
     try {
       const result = await persistTransaction(payload);
+      if (account?.id) {
+        try {
+          await adjustBankAccountBalance(account.id, normalizedAmount);
+        } catch (balanceError) {
+          console.warn("Failed to update bank account balance after income", balanceError);
+        }
+      }
 
       if (result.status === "local-only") {
         Alert.alert(

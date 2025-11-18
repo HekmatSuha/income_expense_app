@@ -1,10 +1,11 @@
-import { collection, addDoc, getDocs, query } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, doc, updateDoc, increment } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { LOCAL_USER_ID } from "../storage/transactions";
 import {
   addLocalBankAccount,
   getLocalBankAccounts,
   setLocalBankAccounts,
+  adjustLocalBankAccountBalance,
 } from "../storage/bankAccounts";
 
 const getBankAccountsCollection = (userId) => {
@@ -94,5 +95,34 @@ export const getBankAccounts = async () => {
   } catch (error) {
     console.warn("Failed to fetch remote bank accounts, falling back to local cache", error);
     return getLocalBankAccounts(targetUserId);
+  }
+};
+
+export const adjustBankAccountBalance = async (accountId, delta = 0) => {
+  if (!accountId || !Number.isFinite(delta) || delta === 0) {
+    return null;
+  }
+
+  const user = await waitForAuthenticatedUser().catch((error) => {
+    console.warn("Failed to determine authenticated user", error);
+    return null;
+  });
+
+  const targetUserId = user?.uid || LOCAL_USER_ID;
+
+  if (user) {
+    try {
+      const accountRef = doc(db, "users", user.uid, "bankAccounts", accountId);
+      await updateDoc(accountRef, { balance: increment(delta) });
+    } catch (error) {
+      console.warn("Failed to update remote bank account balance", error);
+    }
+  }
+
+  try {
+    return await adjustLocalBankAccountBalance(targetUserId, accountId, delta);
+  } catch (error) {
+    console.warn("Failed to update local bank account balance", error);
+    return null;
   }
 };

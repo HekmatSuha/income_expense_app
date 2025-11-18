@@ -105,3 +105,36 @@ export const addLocalBankAccount = async (userId, account) => {
 
   return normalized;
 };
+
+export const adjustLocalBankAccountBalance = async (userId, accountId, delta = 0) => {
+  if (!accountId || !Number.isFinite(delta) || delta === 0) {
+    return null;
+  }
+
+  const targetUserId = userId || DEFAULT_USER_ID;
+  const all = await readAll();
+  const existing = Array.isArray(all[targetUserId])
+    ? all[targetUserId].map((account) => normalizeAccount(account))
+    : cloneDefaultAccounts();
+
+  let updatedAccount = null;
+  const updatedList = existing.map((account) => {
+    if (account.id !== accountId) {
+      return account;
+    }
+    const nextBalance = (Number(account.balance) || 0) + delta;
+    updatedAccount = {
+      ...account,
+      balance: Number.isFinite(nextBalance) ? nextBalance : 0,
+    };
+    return updatedAccount;
+  });
+
+  if (!updatedAccount) {
+    return null;
+  }
+
+  all[targetUserId] = updatedList;
+  await writeAll(all);
+  return updatedAccount;
+};
