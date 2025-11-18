@@ -1,12 +1,16 @@
-import { collection, addDoc, getDocs, query, doc, updateDoc, increment } from "firebase/firestore";
+import { collection, addDoc, getDocs, query } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { LOCAL_USER_ID } from "../storage/transactions";
+import {
+  LOCAL_USER_ID,
+  getTransactionsForUser,
+  setTransactionsForUser,
+} from "../storage/transactions";
 import {
   addLocalBankAccount,
   getLocalBankAccounts,
   setLocalBankAccounts,
-  adjustLocalBankAccountBalance,
 } from "../storage/bankAccounts";
+import { fetchRemoteTransactions } from "./transactions";
 
 const getBankAccountsCollection = (userId) => {
   return collection(db, "users", userId, "bankAccounts");
@@ -35,12 +39,64 @@ const waitForAuthenticatedUser = () =>
     }, 100);
   });
 
-const normalizeBankAccount = (bankAccount) => ({
-  name: bankAccount?.name || "Account",
-  type: bankAccount?.type || "Account",
-  balance: Number(bankAccount?.balance) || 0,
-  currency: bankAccount?.currency || "USD",
-});
+const normalizeBankAccount = (bankAccount) => {
+  const startingBalance = Number(bankAccount?.startingBalance ?? bankAccount?.balance);
+  return {
+    name: bankAccount?.name || "Account",
+    type: bankAccount?.type || "Account",
+    startingBalance: Number.isFinite(startingBalance) ? startingBalance : 0,
+    currency: bankAccount?.currency || "USD",
+  };
+};
+
+const sanitizeAccountKey = (value) => (value || "").trim().toLowerCase();
+
+const buildBalanceMapFromTransactions = (transactions) => {
+  return transactions.reduce((map, transaction) => {
+    const key = sanitizeAccountKey(transaction?.paymentAccount);
+    const amount = Number(transaction?.amount);
+    if (!key || !Number.isFinite(amount)) {
+      return map;
+    }
+    map[key] = (map[key] || 0) + amount;
+    return map;
+  }, {});
+};
+
+const applyBalancesToAccounts = (accounts, transactions) => {
+  const adjustments = buildBalanceMapFromTransactions(transactions);
+  return accounts.map((account) => {
+    const key = sanitizeAccountKey(account?.name);
+    const startingBalance = Number(account?.startingBalance ?? account?.balance) || 0;
+    const delta = adjustments[key] || 0;
+    const computedBalance = Number((startingBalance + delta).toFixed(2));
+    return {
+      ...account,
+      startingBalance,
+      balance: computedBalance,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+};
+
+const loadTransactionsForUser = async (userId, isAuthenticated) => {
+  if (!userId) {
+    return [];
+  }
+
+  if (!isAuthenticated) {
+    return getTransactionsForUser(userId);
+  }
+
+  try {
+    const remoteTransactions = await fetchRemoteTransactions(userId);
+    await setTransactionsForUser(userId, remoteTransactions);
+    return remoteTransactions;
+  } catch (error) {
+    console.warn("Failed to fetch remote transactions for balances", error);
+    return getTransactionsForUser(userId);
+  }
+};
 
 export const addBankAccount = async (bankAccount) => {
   const normalized = normalizeBankAccount(bankAccount);
@@ -56,7 +112,12 @@ export const addBankAccount = async (bankAccount) => {
 
   try {
     const bankAccountsCollection = getBankAccountsCollection(user.uid);
-    const docRef = await addDoc(bankAccountsCollection, normalized);
+    const docRef = await addDoc(bankAccountsCollection, {
+      ...normalized,
+      balance: normalized.startingBalance,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     return await persistLocally({ id: docRef.id });
   } catch (error) {
     console.warn("Falling back to local bank account storage", error);
@@ -72,57 +133,33 @@ export const getBankAccounts = async () => {
 
   const targetUserId = user?.uid || LOCAL_USER_ID;
 
+  let sourceAccounts = [];
+
   if (!user) {
-    return getLocalBankAccounts(targetUserId);
-  }
-
-  try {
-    const bankAccountsCollection = getBankAccountsCollection(user.uid);
-    const q = query(bankAccountsCollection);
-    const querySnapshot = await getDocs(q);
-
-    const bankAccounts = [];
-    querySnapshot.forEach((doc) => {
-      bankAccounts.push({ id: doc.id, ...doc.data() });
-    });
-
-    if (bankAccounts.length === 0) {
-      return getLocalBankAccounts(targetUserId);
-    }
-
-    await setLocalBankAccounts(targetUserId, bankAccounts);
-    return bankAccounts;
-  } catch (error) {
-    console.warn("Failed to fetch remote bank accounts, falling back to local cache", error);
-    return getLocalBankAccounts(targetUserId);
-  }
-};
-
-export const adjustBankAccountBalance = async (accountId, delta = 0) => {
-  if (!accountId || !Number.isFinite(delta) || delta === 0) {
-    return null;
-  }
-
-  const user = await waitForAuthenticatedUser().catch((error) => {
-    console.warn("Failed to determine authenticated user", error);
-    return null;
-  });
-
-  const targetUserId = user?.uid || LOCAL_USER_ID;
-
-  if (user) {
+    sourceAccounts = await getLocalBankAccounts(targetUserId);
+  } else {
     try {
-      const accountRef = doc(db, "users", user.uid, "bankAccounts", accountId);
-      await updateDoc(accountRef, { balance: increment(delta) });
+      const bankAccountsCollection = getBankAccountsCollection(user.uid);
+      const q = query(bankAccountsCollection);
+      const querySnapshot = await getDocs(q);
+
+      querySnapshot.forEach((snapshotDoc) => {
+        sourceAccounts.push({ id: snapshotDoc.id, ...snapshotDoc.data() });
+      });
+
+      if (sourceAccounts.length > 0) {
+        await setLocalBankAccounts(targetUserId, sourceAccounts);
+      }
     } catch (error) {
-      console.warn("Failed to update remote bank account balance", error);
+      console.warn("Failed to fetch remote bank accounts, falling back to local cache", error);
+      sourceAccounts = await getLocalBankAccounts(targetUserId);
     }
   }
 
-  try {
-    return await adjustLocalBankAccountBalance(targetUserId, accountId, delta);
-  } catch (error) {
-    console.warn("Failed to update local bank account balance", error);
-    return null;
+  if (sourceAccounts.length === 0) {
+    sourceAccounts = await getLocalBankAccounts(targetUserId);
   }
+
+  const transactions = await loadTransactionsForUser(targetUserId, Boolean(user));
+  return applyBalancesToAccounts(sourceAccounts, transactions);
 };

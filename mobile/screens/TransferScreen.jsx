@@ -17,7 +17,7 @@ import DateTimePicker, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { adjustBankAccountBalance, getBankAccounts } from "../services/bankAccountRepository";
+import { getBankAccounts } from "../services/bankAccountRepository";
 import { persistTransaction } from "../services/transactionRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
@@ -272,13 +272,6 @@ export default function TransferScreen({ navigation }) {
         transferTo: toAccount.name,
       });
       statuses.push(outgoing.status);
-      if (fromAccount?.id) {
-        try {
-          await adjustBankAccountBalance(fromAccount.id, -Math.abs(numericAmount));
-        } catch (balanceError) {
-          console.warn("Failed to decrease source account after transfer", balanceError);
-        }
-      }
 
       const incoming = await persistTransaction({
         ...sharedMeta,
@@ -288,13 +281,6 @@ export default function TransferScreen({ navigation }) {
         transferFrom: fromAccount.name,
       });
       statuses.push(incoming.status);
-      if (toAccount?.id) {
-        try {
-          await adjustBankAccountBalance(toAccount.id, Math.abs(numericAmount));
-        } catch (balanceError) {
-          console.warn("Failed to increase destination account after transfer", balanceError);
-        }
-      }
 
       if (statuses.includes("local-only")) {
         Alert.alert(
