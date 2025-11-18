@@ -89,9 +89,50 @@ const getAmountClass = (type) => {
   }
 };
 
+const getTransactionDate = (transaction) => {
+  const candidate =
+    transaction?.createdAt ||
+    transaction?.date ||
+    transaction?.updatedAt ||
+    transaction?.timestamp;
+  if (!candidate) {
+    return null;
+  }
+  const parsed = new Date(candidate);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
+};
+
+const isSameDay = (a, b) =>
+  a &&
+  b &&
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const isSameMonth = (a, b) =>
+  a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+
+const getSignedAmounts = (transaction) => {
+  const type = (transaction?.type || "").toUpperCase();
+  const numeric = Number(transaction?.amount) || 0;
+  const absolute = Math.abs(numeric);
+
+  if (type === "INCOME") {
+    return { type, absolute, signed: absolute };
+  }
+  if (type === "EXPENSE") {
+    return { type, absolute, signed: -absolute };
+  }
+  return { type, absolute, signed: numeric };
+};
+
 export default function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [monthlyBudget] = useState(null);
   const unsubscribeRef = useRef(null);
 
   const loadLocalTransactions = useCallback(async () => {
@@ -178,25 +219,78 @@ export default function HomeScreen({ navigation }) {
     }
   }, [loadLocalTransactions]);
 
-  const { incomeTotal, expenseTotal } = useMemo(() => {
-    return transactions.reduce(
+  const todaySummary = useMemo(() => {
+    const today = new Date();
+    const summary = transactions.reduce(
       (acc, transaction) => {
-        const amount = Number(transaction.amount) || 0;
-        if (transaction.type === "INCOME") {
-          acc.incomeTotal += amount;
-        } else if (transaction.type === "EXPENSE") {
-          acc.expenseTotal += amount;
+        const transactionDate = getTransactionDate(transaction);
+        const { type, absolute, signed } = getSignedAmounts(transaction);
+        const isForToday = transactionDate ? isSameDay(transactionDate, today) : false;
+
+        if (isForToday) {
+          if (type === "INCOME") {
+            acc.todayIncome += absolute;
+            acc.todayNet += signed;
+          } else if (type === "EXPENSE") {
+            acc.todayExpense += absolute;
+            acc.todayNet += signed;
+          } else {
+            acc.todayNet += signed;
+          }
+        } else {
+          acc.previousBalance += signed;
         }
+
         return acc;
       },
-      { incomeTotal: 0, expenseTotal: 0 }
+      {
+        todayIncome: 0,
+        todayExpense: 0,
+        todayNet: 0,
+        previousBalance: 0,
+        todayLabel: "",
+      }
     );
+    summary.todayLabel = formatDate(today);
+    return summary;
   }, [transactions]);
 
-  const computedBalance = useMemo(
-    () => incomeTotal - expenseTotal,
-    [incomeTotal, expenseTotal]
+  const totalBalance = useMemo(
+    () => todaySummary.previousBalance + todaySummary.todayNet,
+    [todaySummary.previousBalance, todaySummary.todayNet]
   );
+
+  const todayBalanceClass = todaySummary.todayNet >= 0 ? "text-income" : "text-expense";
+  const totalBalanceClass = totalBalance >= 0 ? "text-income" : "text-expense";
+  const previousBalanceClass =
+    todaySummary.previousBalance >= 0 ? "text-income" : "text-expense";
+  const todayExpenseDisplay = todaySummary.todayExpense > 0 ? -todaySummary.todayExpense : 0;
+  const currentMonthExpense = useMemo(() => {
+    const now = new Date();
+    return transactions.reduce((acc, transaction) => {
+      const transactionDate = getTransactionDate(transaction);
+      const { type, absolute } = getSignedAmounts(transaction);
+      if (type === "EXPENSE" && transactionDate && isSameMonth(transactionDate, now)) {
+        return acc + absolute;
+      }
+      return acc;
+    }, 0);
+  }, [transactions]);
+
+  const budgetSummary = useMemo(() => {
+    if (monthlyBudget == null) {
+      return { hasBudget: false };
+    }
+    const remaining = monthlyBudget - currentMonthExpense;
+    return {
+      hasBudget: true,
+      budgetAmount: monthlyBudget,
+      spent: currentMonthExpense,
+      statusLabel: remaining >= 0 ? "Remaining" : "Exceeded by",
+      statusAmount: Math.abs(remaining),
+      statusClass: remaining >= 0 ? "text-income" : "text-expense",
+    };
+  }, [monthlyBudget, currentMonthExpense]);
 
   const recentTransactions = useMemo(() => {
     return [...transactions]
@@ -271,36 +365,38 @@ export default function HomeScreen({ navigation }) {
 
           <View className="bg-card-light rounded-2xl shadow-md p-4">
             <Text className="text-center text-sm font-semibold text-text-secondary-light">
-              01-Oct-2025 → 31-Oct-2025
+              {`Today · ${todaySummary.todayLabel || ""}`}
             </Text>
             <View className="flex-row justify-between border-b border-gray-200 mt-4 pb-3">
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Income</Text>
                 <Text className="text-lg font-bold text-income mt-1">
-                  {formatCurrency(incomeTotal)}
+                  {formatCurrency(todaySummary.todayIncome)}
                 </Text>
               </View>
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Expense</Text>
                 <Text className="text-lg font-bold text-expense mt-1">
-                  {formatCurrency(expenseTotal)}
+                  {formatCurrency(todayExpenseDisplay)}
                 </Text>
               </View>
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Balance</Text>
-                <Text className="text-lg font-bold text-text-light mt-1">
-                  {formatCurrency(computedBalance)}
+                <Text className={`text-lg font-bold mt-1 ${todayBalanceClass}`}>
+                  {formatCurrency(todaySummary.todayNet)}
                 </Text>
               </View>
             </View>
             <View className="flex-row justify-between items-center mt-3">
               <Text className="text-sm text-text-secondary-light">Previous Balance</Text>
-              <Text className="text-sm font-semibold text-text-light">0</Text>
+              <Text className={`text-sm font-semibold ${previousBalanceClass}`}>
+                {formatCurrency(todaySummary.previousBalance)}
+              </Text>
             </View>
             <View className="flex-row justify-between items-center mt-2">
-              <Text className="text-sm font-bold text-text-secondary-light">Balance</Text>
-              <Text className="text-sm font-bold text-income">
-                {formatCurrency(computedBalance)}
+              <Text className="text-sm font-bold text-text-secondary-light">Total Balance</Text>
+              <Text className={`text-sm font-bold ${totalBalanceClass}`}>
+                {formatCurrency(totalBalance)}
               </Text>
             </View>
           </View>
@@ -326,6 +422,7 @@ export default function HomeScreen({ navigation }) {
                       </Text>
                       <Text className="text-base font-semibold text-text-light mt-1">
                         {transaction.category || transaction.type}
+                        {transaction.paymentAccount ? ` (${transaction.paymentAccount})` : ""}
                       </Text>
                       {transaction.note ? (
                         <Text className="text-xs text-text-secondary-light mt-1">
@@ -349,23 +446,37 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
 
-          <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6 relative">
-            <TouchableOpacity
-              className="absolute top-4 right-4 bg-primary rounded-full w-10 h-10 items-center justify-center shadow-lg"
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate("AddTransaction")}
-            >
-              <MaterialIcons name="add" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+          <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6">
             <Text className="text-lg font-bold text-text-light mb-4">Monthly Budget</Text>
-            <View className="flex-row justify-between">
-              <Text className="text-sm text-text-secondary-light">Budget Expense</Text>
-              <Text className="text-sm text-text-light">0</Text>
-            </View>
-            <View className="flex-row justify-between mt-2">
-              <Text className="text-sm text-text-secondary-light font-semibold">Remaining</Text>
-              <Text className="text-sm text-expense font-bold">0</Text>
-            </View>
+            {budgetSummary.hasBudget ? (
+              <>
+                <View className="flex-row justify-between">
+                  <Text className="text-sm text-text-secondary-light">Budget</Text>
+                  <Text className="text-sm font-semibold text-text-light">
+                    {formatCurrency(budgetSummary.budgetAmount)}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between mt-2">
+                  <Text className="text-sm text-text-secondary-light">Spent this month</Text>
+                  <Text className="text-sm font-semibold text-expense">
+                    {formatCurrency(budgetSummary.spent)}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between mt-2">
+                  <Text className="text-sm text-text-secondary-light font-semibold">
+                    {budgetSummary.statusLabel}
+                  </Text>
+                  <Text className={`text-sm font-bold ${budgetSummary.statusClass}`}>
+                    {formatCurrency(budgetSummary.statusAmount)}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <Text className="text-sm text-text-secondary-light">
+                You haven't set a monthly budget yet. Once you define one, we'll track how much of
+                it you've spent and highlight any excess.
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>

@@ -32,6 +32,18 @@ function formatCurrency(value, currency) {
   });
 }
 
+const formatCurrencyLabel = (amount, currencyCode) => {
+  const numeric = Number(amount) || 0;
+  const formatted = Math.abs(numeric).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const prefix = numeric < 0 ? "-" : "";
+  return currencyCode
+    ? `${prefix}${currencyCode} ${formatted}`
+    : `${prefix}${formatted}`;
+};
+
 export default function BankAccountsScreen({ navigation }) {
   const [accounts, setAccounts] = useState([]);
   const [name, setName] = useState("");
@@ -43,6 +55,7 @@ export default function BankAccountsScreen({ navigation }) {
   const [fetchError, setFetchError] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isAddAccountModalVisible, setAddAccountModalVisible] = useState(false);
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
@@ -64,8 +77,22 @@ export default function BankAccountsScreen({ navigation }) {
     }, [loadAccounts])
   );
 
-  const totalBalance = useMemo(() => {
-    return accounts.reduce((sum, account) => sum + (Number(account.balance) || 0), 0);
+  const currencyBreakdownLabel = useMemo(() => {
+    if (!Array.isArray(accounts) || accounts.length === 0) {
+      return formatCurrencyLabel(0, "USD");
+    }
+    const totals = accounts.reduce((acc, account) => {
+      const code = account?.currency || "USD";
+      const amount = Number(account?.balance);
+      if (!Number.isFinite(amount)) {
+        return acc;
+      }
+      acc[code] = (acc[code] || 0) + amount;
+      return acc;
+    }, {});
+    return Object.entries(totals)
+      .map(([code, amount]) => formatCurrencyLabel(amount, code))
+      .join(", ");
   }, [accounts]);
 
   const handleAddAccount = useCallback(async () => {
@@ -82,11 +109,12 @@ export default function BankAccountsScreen({ navigation }) {
     setFormError("");
 
     try {
+      const accountCurrency = currency?.value || currency?.code || currency?.label || "USD";
       const accountPayload = {
         name: trimmedName,
         type: trimmedType,
-        balance: parsedBalance,
-        currency: currency.value,
+        startingBalance: parsedBalance,
+        currency: accountCurrency,
       };
 
       const newAccount = await addBankAccount(accountPayload);
@@ -95,6 +123,8 @@ export default function BankAccountsScreen({ navigation }) {
       setName("");
       setType("");
       setBalance("");
+      setFormError("");
+      setAddAccountModalVisible(false);
     } catch (error) {
       console.error("Failed to create bank account", error);
       if (error.message === "auth/not-authenticated") {
@@ -131,7 +161,7 @@ export default function BankAccountsScreen({ navigation }) {
         <View className="mt-4">
           <Text className="text-white text-sm">Total balance</Text>
           <Text className="text-white text-2xl font-bold mt-1">
-            {formatCurrency(totalBalance, accounts[0]?.currency)}
+            {currencyBreakdownLabel}
           </Text>
         </View>
       </View>
@@ -144,9 +174,76 @@ export default function BankAccountsScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View className="px-4 pt-4 space-y-6">
-          <View className="bg-white rounded-2xl shadow-sm border border-brand-sky-15 p-4">
+          <TouchableOpacity
+            onPress={() => {
+              setFormError("");
+              setAddAccountModalVisible(true);
+            }}
+            activeOpacity={0.9}
+            className="bg-brand-sky rounded-2xl py-4 px-5 shadow-md flex-row items-center justify-center gap-3"
+          >
+            <MaterialIcons name="add" size={24} color="#FFFFFF" />
+            <Text className="text-white text-base font-semibold">Add account</Text>
+          </TouchableOpacity>
+
+          <View className="bg-white rounded-2xl shadow-sm border border-brand-sky-10">
+            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
+              <Text className="text-base font-semibold text-brand-slate-900">
+                Your bank accounts
+              </Text>
+              <MaterialIcons name="account-balance-wallet" size={22} color="#0288D1" />
+            </View>
+            {loading ? (
+              <View className="px-4 py-6 items-center">
+                <Text className="text-sm text-brand-slate-600">Loading bank accounts...</Text>
+              </View>
+            ) : fetchError ? (
+              <View className="px-4 py-6">
+                <Text className="text-sm text-brand-error text-center">{fetchError}</Text>
+              </View>
+            ) : accounts.length === 0 ? (
+              <View className="px-4 py-6 items-center">
+                <Text className="text-sm text-brand-slate-600 text-center">
+                  No accounts yet. Tap “Add account” above to create your first one.
+                </Text>
+              </View>
+            ) : (
+              accounts.map((account, index) => (
+                <View
+                  key={account.id}
+                  className={`px-4 py-4 border-b border-gray-100 ${
+                    index === accounts.length - 1 ? "border-b-0" : ""
+                  }`}
+                >
+                  <View className="flex-row items-center justify-between">
+                    <View>
+                      <Text className="text-base font-semibold text-brand-slate-900">
+                        {account.name}
+                      </Text>
+                      <Text className="text-xs text-brand-slate-500 mt-1">{account.type}</Text>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-lg font-bold text-brand-sky">
+                        {formatCurrency(account.balance, account.currency)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+      </ScrollView>
+      <Modal
+        visible={isAddAccountModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setAddAccountModalVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50 px-4">
+          <View className="bg-white rounded-3xl w-full p-5">
             <Text className="text-lg font-semibold text-brand-slate-900 mb-4">
-              Create a new bank account
+              New bank account
             </Text>
             <View className="space-y-4">
               <View>
@@ -189,69 +286,34 @@ export default function BankAccountsScreen({ navigation }) {
               {formError ? (
                 <Text className="text-sm text-brand-error">{formError}</Text>
               ) : null}
-              <TouchableOpacity
-                onPress={handleAddAccount}
-                activeOpacity={0.85}
-                className={`bg-brand-sky rounded-2xl py-3 items-center justify-center shadow-sm ${
-                  submitting ? "opacity-70" : ""
-                }`}
-                disabled={submitting}
-              >
-                <Text className="text-white text-base font-semibold">
-                  {submitting ? "Adding..." : "Add account"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View className="bg-white rounded-2xl shadow-sm border border-brand-sky-10">
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
-              <Text className="text-base font-semibold text-brand-slate-900">
-                Your bank accounts
-              </Text>
-              <MaterialIcons name="account-balance-wallet" size={22} color="#0288D1" />
-            </View>
-            {loading ? (
-              <View className="px-4 py-6 items-center">
-                <Text className="text-sm text-brand-slate-600">Loading bank accounts...</Text>
-              </View>
-            ) : fetchError ? (
-              <View className="px-4 py-6">
-                <Text className="text-sm text-brand-error text-center">{fetchError}</Text>
-              </View>
-            ) : accounts.length === 0 ? (
-              <View className="px-4 py-6 items-center">
-                <Text className="text-sm text-brand-slate-600 text-center">
-                  No accounts yet. Add your first bank account above.
-                </Text>
-              </View>
-            ) : (
-              accounts.map((account, index) => (
-                <View
-                  key={account.id}
-                  className={`px-4 py-4 border-b border-gray-100 ${
-                    index === accounts.length - 1 ? "border-b-0" : ""
-                  }`}
+              <View className="flex-row justify-end gap-3 pt-2">
+                <TouchableOpacity
+                  onPress={() => {
+                    setAddAccountModalVisible(false);
+                    setFormError("");
+                  }}
+                  className="px-4 py-3 rounded-xl border border-brand-slate-200"
+                  activeOpacity={0.8}
                 >
-                  <View className="flex-row items-center justify-between">
-                    <View>
-                      <Text className="text-base font-semibold text-brand-slate-900">
-                        {account.name}
-                      </Text>
-                      <Text className="text-xs text-brand-slate-500 mt-1">{account.type}</Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-lg font-bold text-brand-sky">
-                        {formatCurrency(account.balance, account.currency)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ))
-            )}
+                  <Text className="text-sm font-semibold text-brand-slate-600">Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleAddAccount}
+                  activeOpacity={0.85}
+                  className={`bg-brand-sky rounded-xl px-5 py-3 items-center justify-center shadow-sm ${
+                    submitting ? "opacity-70" : ""
+                  }`}
+                  disabled={submitting}
+                >
+                  <Text className="text-white text-sm font-semibold">
+                    {submitting ? "Saving..." : "Save account"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
-      </ScrollView>
+      </Modal>
       <Modal
         visible={isCurrencyPickerVisible}
         animationType="slide"

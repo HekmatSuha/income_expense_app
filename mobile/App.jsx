@@ -22,42 +22,18 @@ export default function App() {
   return (
     <ErrorBoundary>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Login">
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen
-            name="Register"
-            component={RegisterScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ForgotPassword"
-            component={ForgotPasswordScreen}
-            options={{ headerShown: false }}
-          />
+        <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen
-            name="Transactions"
-            component={TransactionsScreen}
-            options={{ headerShown: false }}
-          />
+          <Stack.Screen name="Transactions" component={TransactionsScreen} />
           <Stack.Screen name="BankAccounts" component={BankAccountsScreen} />
           <Stack.Screen name="Notebook" component={NotebookScreen} />
           <Stack.Screen name="AddTransaction" component={AddTransactionScreen} />
-          <Stack.Screen
-            name="AddExpense"
-            component={AddExpenseScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="AddIncome"
-            component={AddIncomeScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Transfer"
-            component={TransferScreen}
-            options={{ headerShown: false }}
-          />
+          <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
+          <Stack.Screen name="AddIncome" component={AddIncomeScreen} />
+          <Stack.Screen name="Transfer" component={TransferScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </ErrorBoundary>
