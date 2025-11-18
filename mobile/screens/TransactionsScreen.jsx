@@ -4,6 +4,8 @@ import {
   View as RNView,
   Text as RNText,
   TouchableOpacity as RNTouchableOpacity,
+  Modal,
+  Button,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -16,6 +18,7 @@ import {
   getTransactionsForUser,
   setTransactionsForUser,
 } from "../storage/transactions";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -23,7 +26,7 @@ const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
 
-const timeFilters = ["All", "Daily", "Weekly", "Monthly", "Yearly"];
+const timeFilters = ["All", "Daily", "Weekly", "Monthly", "Custom"];
 
 const formatCurrency = (value) => {
   const numeric = Number(value) || 0;
@@ -34,6 +37,11 @@ export default function TransactionsScreen() {
   const navigation = useNavigation();
   const [activeFilter, setActiveFilter] = useState("All");
   const [transactions, setTransactions] = useState([]);
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [isSettingStartDate, setIsSettingStartDate] = useState(true);
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
@@ -90,6 +98,51 @@ export default function TransactionsScreen() {
     };
   }, [uid]);
 
+  useEffect(() => {
+    const now = new Date();
+    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+    const startOfWeek = new Date(
+      now.setDate(now.getDate() - now.getDay())
+    ).setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const filtered = transactions.filter((t) => {
+      const transactionDate = new Date(t.date);
+      switch (activeFilter) {
+        case "Daily":
+          return transactionDate >= startOfDay;
+        case "Weekly":
+          return transactionDate >= startOfWeek;
+        case "Monthly":
+          return transactionDate >= startOfMonth;
+        case "Custom":
+          return (
+            transactionDate >= startDate &&
+            transactionDate <= new Date(endDate.setHours(23, 59, 59, 999))
+          );
+        case "All":
+        default:
+          return true;
+      }
+    });
+    setFilteredTransactions(filtered);
+  }, [transactions, activeFilter, startDate, endDate]);
+
+  const handleDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || (isSettingStartDate ? startDate : endDate);
+    setDatePickerVisible(false);
+    if (isSettingStartDate) {
+      setStartDate(currentDate);
+    } else {
+      setEndDate(currentDate);
+    }
+  };
+
+  const showDatePicker = (isStart) => {
+    setIsSettingStartDate(isStart);
+    setDatePickerVisible(true);
+  };
+
   const formatDateTime = useCallback((value) => {
     if (!value) {
       return { date: "-", time: "" };
@@ -133,21 +186,30 @@ export default function TransactionsScreen() {
 
   const totalIncome = useMemo(
     () =>
-      transactions
+      filteredTransactions
         .filter((transaction) => normalizeType(transaction.type) === "INCOME")
-        .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0),
-    [normalizeType, transactions]
+        .reduce(
+          (sum, transaction) => sum + (Number(transaction.amount) || 0),
+          0
+        ),
+    [normalizeType, filteredTransactions]
   );
 
   const totalExpense = useMemo(
     () =>
-      transactions
+      filteredTransactions
         .filter((transaction) => normalizeType(transaction.type) === "EXPENSE")
-        .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0),
-    [normalizeType, transactions]
+        .reduce(
+          (sum, transaction) => sum + (Number(transaction.amount) || 0),
+          0
+        ),
+    [normalizeType, filteredTransactions]
   );
 
-  const balance = useMemo(() => totalIncome - totalExpense, [totalIncome, totalExpense]);
+  const balance = useMemo(
+    () => totalIncome - totalExpense,
+    [totalIncome, totalExpense]
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -166,7 +228,9 @@ export default function TransactionsScreen() {
               >
                 <Feather name="arrow-left" size={24} color="#FFFFFF" />
               </TouchableOpacity>
-              <Text className="text-white text-xl font-semibold">Transactions</Text>
+              <Text className="text-white text-xl font-semibold">
+                Transactions
+              </Text>
             </View>
             <View className="flex-row items-center gap-4">
               <TouchableOpacity className="p-2" activeOpacity={0.7}>
@@ -196,9 +260,18 @@ export default function TransactionsScreen() {
                       isActive ? "bg-white" : "bg-white/20"
                     }`}
                     activeOpacity={0.8}
-                    onPress={() => setActiveFilter(filter)}
+                    onPress={() => {
+                      if (filter === "Custom") {
+                        setDatePickerVisible(true);
+                      }
+                      setActiveFilter(filter);
+                    }}
                   >
-                    <Text className={`${isActive ? "text-gray-900" : "text-white"} text-sm font-medium`}>
+                    <Text
+                      className={`${
+                        isActive ? "text-gray-900" : "text-white"
+                      } text-sm font-medium`}
+                    >
                       {filter}
                     </Text>
                   </TouchableOpacity>
@@ -209,8 +282,38 @@ export default function TransactionsScreen() {
         </View>
 
         <View className="bg-[#0288D1]">
-          <Text className="text-white text-center py-3 text-base font-medium">All</Text>
+          <Text className="text-white text-center py-3 text-base font-medium">
+            {activeFilter}
+          </Text>
         </View>
+
+        <Modal
+          visible={isDatePickerVisible}
+          transparent={true}
+          animationType="slide"
+        >
+          <View className="flex-1 justify-center items-center bg-black/50">
+            <View className="bg-white rounded-lg p-5 w-5/6">
+              <Text className="text-lg font-bold mb-4">Select Date Range</Text>
+              <View className="flex-row justify-around mb-4">
+                <Button title="Start Date" onPress={() => showDatePicker(true)} />
+                <Button title="End Date" onPress={() => showDatePicker(false)} />
+              </View>
+              {isDatePickerVisible && (
+                <DateTimePicker
+                  value={isSettingStartDate ? startDate : endDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                />
+              )}
+              <Button
+                title="Done"
+                onPress={() => setDatePickerVisible(false)}
+              />
+            </View>
+          </View>
+        </Modal>
 
         <View className="flex-1">
           <ScrollView
@@ -219,23 +322,42 @@ export default function TransactionsScreen() {
           >
             <View className="bg-white">
               <View className="flex-row items-center border-b border-gray-200 px-4 py-3 bg-gray-50">
-                <Text className="flex-1 text-xs font-semibold text-gray-600">Date</Text>
-                <Text className="flex-1 text-xs font-semibold text-gray-600">Category</Text>
-                <Text className="w-20 text-right text-xs font-semibold text-green-600">Income</Text>
-                <Text className="w-20 text-right text-xs font-semibold text-red-600">Expense</Text>
+                <Text className="flex-1 text-xs font-semibold text-gray-600">
+                  Date
+                </Text>
+                <Text className="flex-1 text-xs font-semibold text-gray-600">
+                  Category
+                </Text>
+                <Text className="w-20 text-right text-xs font-semibold text-green-600">
+                  Income
+                </Text>
+                <Text className="w-20 text-right text-xs font-semibold text-red-600">
+                  Expense
+                </Text>
               </View>
 
-              {transactions.map((transaction, index) => {
-                const isLast = index === transactions.length - 1;
-                const { date, time } = formatDateTime(transaction.date ?? transaction.createdAt);
+              {filteredTransactions.map((transaction, index) => {
+                const isLast = index === filteredTransactions.length - 1;
+                const { date, time } = formatDateTime(
+                  transaction.date ?? transaction.createdAt
+                );
                 return (
-                  <View key={transaction.id} className={`${!isLast ? "border-b border-gray-200" : ""}`}>
+                  <View
+                    key={transaction.id}
+                    className={`${
+                      !isLast ? "border-b border-gray-200" : ""
+                    }`}
+                  >
                     <View className="flex-row items-start px-4 py-4 gap-3">
                       <View className="flex-1">
                         <Text className="text-sm text-gray-800">{date}</Text>
-                        <Text className="text-xs text-gray-500 mt-1">{time}</Text>
+                        <Text className="text-xs text-gray-500 mt-1">
+                          {time}
+                        </Text>
                       </View>
-                      <Text className="flex-1 text-sm text-gray-800">{transaction.category}</Text>
+                      <Text className="flex-1 text-sm text-gray-800">
+                        {transaction.category}
+                      </Text>
                       <Text
                         className={`w-20 text-right text-sm ${
                           normalizeType(transaction.type) === "INCOME"
@@ -270,7 +392,9 @@ export default function TransactionsScreen() {
                           </View>
                         ) : null}
                         {transaction.note ? (
-                          <Text className="text-xs text-gray-500">{transaction.note}</Text>
+                          <Text className="text-xs text-gray-500">
+                            {transaction.note}
+                          </Text>
                         ) : null}
                       </View>
                     </View>
@@ -300,15 +424,21 @@ export default function TransactionsScreen() {
           <View className="flex-row border-t border-gray-200">
             <View className="flex-1 items-center justify-center py-4 border-r border-gray-200">
               <Text className="text-xs text-gray-600">Total Income</Text>
-              <Text className="text-green-600 text-base font-semibold">{formatCurrency(totalIncome)}</Text>
+              <Text className="text-green-600 text-base font-semibold">
+                {formatCurrency(totalIncome)}
+              </Text>
             </View>
             <View className="flex-1 items-center justify-center py-4 border-r border-gray-200">
               <Text className="text-xs text-red-600">Total Expense</Text>
-              <Text className="text-red-600 text-base font-semibold">{formatCurrency(totalExpense)}</Text>
+              <Text className="text-red-600 text-base font-semibold">
+                {formatCurrency(totalExpense)}
+              </Text>
             </View>
             <View className="flex-1 items-center justify-center py-4">
               <Text className="text-xs text-gray-700">Balance</Text>
-              <Text className="text-gray-900 text-base font-semibold">{formatCurrency(balance)}</Text>
+              <Text className="text-gray-900 text-base font-semibold">
+                {formatCurrency(balance)}
+              </Text>
             </View>
           </View>
         </View>
