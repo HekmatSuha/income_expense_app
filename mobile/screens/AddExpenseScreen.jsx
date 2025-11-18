@@ -12,6 +12,9 @@ import {
   Linking,
   Platform,
 } from "react-native";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { persistTransaction } from "../services/transactionRepository";
@@ -200,21 +203,13 @@ export default function AddExpenseScreen({ navigation }) {
   const [itemQuantityInput, setItemQuantityInput] = useState("");
   const [itemRateInput, setItemRateInput] = useState("");
   const [lastItemsSummary, setLastItemsSummary] = useState("");
-  const [inlinePickerMode, setInlinePickerMode] = useState("date");
-  const [isInlinePickerVisible, setInlinePickerVisible] = useState(false);
-  const [calendarCursor, setCalendarCursor] = useState(new Date());
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
-  const [timeHourInput, setTimeHourInput] = useState("12");
-  const [timeMinuteInput, setTimeMinuteInput] = useState("00");
-  const [timePeriodInput, setTimePeriodInput] = useState("AM");
+  const [isDateTimePickerVisible, setDateTimePickerVisible] = useState(false);
+  const [pickerMode, setPickerMode] = useState("date");
+  const [pendingPickerValue, setPendingPickerValue] = useState(new Date());
 
   const itemComposerTotal = useMemo(
     () => itemComposerItems.reduce((sum, item) => sum + computeItemAmount(item), 0),
     [itemComposerItems]
-  );
-  const calendarMatrix = useMemo(
-    () => buildCalendarMatrix(calendarCursor),
-    [calendarCursor]
   );
   const dateLabel = useMemo(() => buildDateLabel(date), [date]);
   const timeLabel = useMemo(
@@ -604,92 +599,57 @@ export default function AddExpenseScreen({ navigation }) {
 
   const openPicker = useCallback(
     (mode) => {
-      const baseDate = currentDateTime;
-      setInlinePickerMode(mode);
-      if (mode === "date") {
-        setCalendarCursor(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
-        setSelectedCalendarDate(baseDate);
-      } else {
-        const hours24 = baseDate.getHours();
-        const minutes = baseDate.getMinutes();
-        const hour12 = hours24 % 12 || 12;
-        setTimeHourInput(padNumber(hour12));
-        setTimeMinuteInput(padNumber(minutes));
-        setTimePeriodInput(hours24 >= 12 ? "PM" : "AM");
+      if (Platform.OS === "android") {
+        DateTimePickerAndroid.open({
+          mode,
+          value: currentDateTime,
+          is24Hour: false,
+          onChange: (_, selectedDate) => {
+            if (!selectedDate) {
+              return;
+            }
+            if (mode === "date") {
+              setDate(formatDisplayDate(selectedDate));
+            } else {
+              setTime(formatDisplayTime(selectedDate));
+            }
+          },
+        });
+        return;
       }
-      setInlinePickerVisible(true);
+      setPickerMode(mode);
+      setPendingPickerValue(currentDateTime);
+      setDateTimePickerVisible(true);
     },
     [currentDateTime]
   );
 
-  const handleInlinePickerConfirm = useCallback(() => {
-    if (inlinePickerMode === "date") {
-      setDate(formatDisplayDate(selectedCalendarDate));
-      setInlinePickerVisible(false);
+  const handlePickerChange = useCallback((_, selectedDate) => {
+    if (Platform.OS !== "ios") {
       return;
     }
-    const hourValue = Number(timeHourInput);
-    const minuteValue = Number(timeMinuteInput);
-    if (
-      Number.isNaN(hourValue) ||
-      Number.isNaN(minuteValue) ||
-      hourValue < 1 ||
-      hourValue > 12 ||
-      minuteValue < 0 ||
-      minuteValue > 59
-    ) {
-      Alert.alert("Invalid time", "Please enter a valid hour (1-12) and minutes (0-59).");
+    if (selectedDate) {
+      setPendingPickerValue(selectedDate);
+    }
+  }, []);
+
+  const handlePickerConfirm = useCallback(() => {
+    if (Platform.OS !== "ios") {
       return;
     }
-    const normalizedHour = hourValue % 12;
-    const hour24 = timePeriodInput === "PM" ? normalizedHour + 12 : normalizedHour;
-    const baseDate = currentDateTime;
-    const nextDate = new Date(
-      baseDate.getFullYear(),
-      baseDate.getMonth(),
-      baseDate.getDate(),
-      hour24,
-      minuteValue
-    );
-    setTime(formatDisplayTime(nextDate));
-    setInlinePickerVisible(false);
-  }, [
-    currentDateTime,
-    inlinePickerMode,
-    selectedCalendarDate,
-    timeHourInput,
-    timeMinuteInput,
-    timePeriodInput,
-  ]);
+    if (pickerMode === "date") {
+      setDate(formatDisplayDate(pendingPickerValue));
+    } else {
+      setTime(formatDisplayTime(pendingPickerValue));
+    }
+    setDateTimePickerVisible(false);
+  }, [pickerMode, pendingPickerValue]);
 
-  const handleInlinePickerCancel = useCallback(() => {
-    setInlinePickerVisible(false);
-  }, []);
-
-  const handleTimeHourChange = useCallback((value) => {
-    const sanitized = value.replace(/[^0-9]/g, "").slice(0, 2);
-    setTimeHourInput(sanitized);
-  }, []);
-
-  const handleTimeMinuteChange = useCallback((value) => {
-    const sanitized = value.replace(/[^0-9]/g, "").slice(0, 2);
-    setTimeMinuteInput(sanitized);
-  }, []);
-
-  const handlePeriodToggle = useCallback((period) => {
-    setTimePeriodInput(period);
-  }, []);
-
-  const handleCalendarMonthChange = useCallback((offset) => {
-    setCalendarCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-  }, []);
-
-  const handleCalendarSelectDate = useCallback((targetDate) => {
-    if (!(targetDate instanceof Date)) {
+  const handlePickerDismiss = useCallback(() => {
+    if (Platform.OS !== "ios") {
       return;
     }
-    setSelectedCalendarDate(targetDate);
-    setCalendarCursor(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
+    setDateTimePickerVisible(false);
   }, []);
 
   const handleDatePress = useCallback(() => {
@@ -1269,159 +1229,32 @@ export default function AddExpenseScreen({ navigation }) {
         </View>
       </Modal>
       <Modal
-        visible={isInlinePickerVisible}
-        transparent={true}
+        visible={isDateTimePickerVisible}
+        transparent
         animationType="fade"
-        onRequestClose={handleInlinePickerCancel}
+        onRequestClose={handlePickerDismiss}
       >
         <View style={styles.pickerModal}>
           <View style={styles.pickerContent}>
-            <View style={styles.pickerHero}>
-              <Text style={styles.pickerHeroTitle}>
-                {inlinePickerMode === "date" ? "Set date" : "Set time"}
-              </Text>
-              <Text style={styles.pickerHeroSubtitle}>
-                {inlinePickerMode === "date"
-                  ? selectedCalendarDate
-                    ? selectedCalendarDate.toLocaleDateString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : ""
-                  : `${padNumber(timeHourInput || "12")}:${padNumber(
-                      timeMinuteInput || "00"
-                    )} ${timePeriodInput}`}
-              </Text>
-            </View>
-
-            {inlinePickerMode === "date" ? (
-              <View style={styles.calendarPicker}>
-                <View style={styles.calendarHeader}>
-                  <TouchableOpacity
-                    onPress={() => handleCalendarMonthChange(-1)}
-                    style={styles.calendarNavButton}
-                  >
-                    <MaterialIcons name="chevron-left" size={24} color="#FFFFFF" />
-                  </TouchableOpacity>
-                  <Text style={styles.calendarMonthLabel}>
-                    {calendarCursor.toLocaleDateString(undefined, {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => handleCalendarMonthChange(1)}
-                    style={styles.calendarNavButton}
-                  >
-                    <MaterialIcons name="chevron-right" size={24} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.calendarWeekRow}>
-                  {DAY_LABELS.map((label, index) => (
-                    <Text
-                      key={`weekday-${label}-${index}`}
-                      style={styles.calendarWeekDay}
-                    >
-                      {label}
-                    </Text>
-                  ))}
-                </View>
-                <View style={styles.calendarGrid}>
-                  {calendarMatrix.map((row, rowIndex) => (
-                    <View key={`row-${rowIndex}`} style={styles.calendarRow}>
-                      {row.map((cell) => {
-                        const active = isSameDay(cell.date, selectedCalendarDate);
-                        return (
-                          <TouchableOpacity
-                            key={cell.date.toISOString()}
-                            style={[
-                              styles.calendarCell,
-                              !cell.isCurrentMonth && styles.calendarCellMuted,
-                              active && styles.calendarCellActive,
-                            ]}
-                            onPress={() => handleCalendarSelectDate(cell.date)}
-                          >
-                            <Text
-                              style={[
-                                styles.calendarCellText,
-                                !cell.isCurrentMonth && styles.calendarCellTextMuted,
-                                active && styles.calendarCellTextActive,
-                              ]}
-                            >
-                              {cell.date.getDate()}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  ))}
-                </View>
+            <DateTimePicker
+              value={pendingPickerValue}
+              mode={pickerMode}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handlePickerChange}
+            />
+            {Platform.OS === "ios" ? (
+              <View style={styles.pickerActions}>
+                <TouchableOpacity style={styles.pickerButton} onPress={handlePickerDismiss}>
+                  <Text style={styles.pickerButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.pickerButton, styles.pickerConfirm]}
+                  onPress={handlePickerConfirm}
+                >
+                  <Text style={[styles.pickerButtonText, styles.pickerConfirmText]}>Save</Text>
+                </TouchableOpacity>
               </View>
-            ) : (
-              <View style={styles.timePicker}>
-                <Text style={styles.timePickerHint}>Type in time</Text>
-                <View style={styles.timePickerInputs}>
-                  <View style={styles.timeInputWrapper}>
-                    <TextInput
-                      style={styles.timeInput}
-                      keyboardType="number-pad"
-                      maxLength={2}
-                      value={timeHourInput}
-                      onChangeText={handleTimeHourChange}
-                      placeholder="HH"
-                    />
-                    <Text style={styles.timeInputLabel}>hour</Text>
-                  </View>
-                  <Text style={styles.timeColon}>:</Text>
-                  <View style={styles.timeInputWrapper}>
-                    <TextInput
-                      style={styles.timeInput}
-                      keyboardType="number-pad"
-                      maxLength={2}
-                      value={timeMinuteInput}
-                      onChangeText={handleTimeMinuteChange}
-                      placeholder="MM"
-                    />
-                    <Text style={styles.timeInputLabel}>minute</Text>
-                  </View>
-                  <View style={styles.periodToggle}>
-                    {["AM", "PM"].map((period) => (
-                      <TouchableOpacity
-                        key={period}
-                        style={[
-                          styles.periodButton,
-                          timePeriodInput === period && styles.periodButtonActive,
-                        ]}
-                        onPress={() => handlePeriodToggle(period)}
-                      >
-                        <Text
-                          style={[
-                            styles.periodButtonText,
-                            timePeriodInput === period && styles.periodButtonTextActive,
-                          ]}
-                        >
-                          {period}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </View>
-            )}
-
-            <View style={styles.pickerActions}>
-              <TouchableOpacity style={styles.pickerButton} onPress={handleInlinePickerCancel}>
-                <Text style={styles.pickerButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pickerButton, styles.pickerConfirm]}
-                onPress={handleInlinePickerConfirm}
-              >
-                <Text style={[styles.pickerButtonText, styles.pickerConfirmText]}>OK</Text>
-              </TouchableOpacity>
-            </View>
+            ) : null}
           </View>
         </View>
       </Modal>
