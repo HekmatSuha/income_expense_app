@@ -417,14 +417,15 @@ export default function TransactionsScreen() {
   );
 
   const groupedTransactions = useMemo(() => {
-    return filteredTransactions.reduce((groups, transaction) => {
+    const groups = filteredTransactions.reduce((bucket, transaction) => {
       const key = transaction.dateLabel;
-      if (!groups[key]) {
-        groups[key] = [];
+      if (!bucket[key]) {
+        bucket[key] = [];
       }
-      groups[key].push(transaction);
-      return groups;
+      bucket[key].push(transaction);
+      return bucket;
     }, {});
+    return Object.entries(groups);
   }, [filteredTransactions]);
 
   return (
@@ -765,10 +766,12 @@ export default function TransactionsScreen() {
                   onChange={handleDateChange}
                 />
               )}
-              <Button
-                title="Done"
+              <TouchableOpacity
+                className="mt-4 px-4 py-2 rounded-full bg-blue-500 self-end"
                 onPress={() => setDatePickerVisible(false)}
-              />
+              >
+                <Text className="text-white font-semibold">Done</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
