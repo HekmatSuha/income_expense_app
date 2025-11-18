@@ -62,6 +62,12 @@ const quickActions = [
 
 const DEFAULT_CURRENCY = "USD";
 
+const currencySymbolMap = currencies.reduce((map, item) => {
+  const symbol = item.symbol || item.value;
+  map[item.value.toUpperCase()] = symbol;
+  return map;
+}, {});
+
 const formatNumber = (value) => {
   const numeric = Number(value) || 0;
   return numeric.toLocaleString(undefined, {
@@ -72,7 +78,8 @@ const formatNumber = (value) => {
 
 const formatCurrency = (value, currencyCode = DEFAULT_CURRENCY) => {
   const code = currencyCode ? currencyCode.toUpperCase() : DEFAULT_CURRENCY;
-  return `${code} ${formatNumber(value)}`;
+  const symbol = currencySymbolMap[code] || code;
+  return `${symbol} ${formatNumber(value)}`;
 };
 
 const addToCurrencyMap = (map, currencyCode, amount) => {
@@ -172,6 +179,17 @@ const getSignedAmounts = (transaction) => {
     return { type, absolute, signed: -absolute };
   }
   return { type, absolute, signed: numeric };
+};
+
+const buildCurrencyEntries = (map) => {
+  if (!map || map.size === 0) {
+    return [{ currency: DEFAULT_CURRENCY, label: formatCurrency(0) }];
+  }
+  return Array.from(map.entries()).map(([currency, amount]) => ({
+    currency,
+    amount,
+    label: formatCurrency(amount, currency),
+  }));
 };
 
 export default function HomeScreen({ navigation }) {
@@ -340,11 +358,26 @@ export default function HomeScreen({ navigation }) {
   const totalBalanceClass = totalBalance >= 0 ? "text-income" : "text-expense";
   const previousBalanceClass =
     todaySummary.previousBalanceTotal >= 0 ? "text-income" : "text-expense";
-  const todayIncomeDisplay = formatCurrencyAggregate(todaySummary.todayIncomeMap);
-  const todayExpenseDisplay = formatCurrencyAggregate(todaySummary.todayExpenseMap);
-  const todayNetDisplay = formatCurrencyAggregate(todaySummary.todayNetMap);
-  const previousBalanceDisplay = formatCurrencyAggregate(todaySummary.previousBalanceMap);
-  const totalBalanceDisplay = formatCurrencyAggregate(totalBalanceMap);
+  const todayIncomeEntries = useMemo(
+    () => buildCurrencyEntries(todaySummary.todayIncomeMap),
+    [todaySummary.todayIncomeMap]
+  );
+  const todayExpenseEntries = useMemo(
+    () => buildCurrencyEntries(todaySummary.todayExpenseMap),
+    [todaySummary.todayExpenseMap]
+  );
+  const todayNetEntries = useMemo(
+    () => buildCurrencyEntries(todaySummary.todayNetMap),
+    [todaySummary.todayNetMap]
+  );
+  const previousBalanceEntries = useMemo(
+    () => buildCurrencyEntries(todaySummary.previousBalanceMap),
+    [todaySummary.previousBalanceMap]
+  );
+  const totalBalanceEntries = useMemo(
+    () => buildCurrencyEntries(totalBalanceMap),
+    [totalBalanceMap]
+  );
   const currentMonthExpenseMap = useMemo(() => {
     const now = new Date();
     const map = new Map();
@@ -507,34 +540,79 @@ export default function HomeScreen({ navigation }) {
             <View className="flex-row justify-between border-b border-gray-200 mt-4 pb-3">
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Income</Text>
-                <Text className="text-lg font-bold text-income mt-1">
-                  {todayIncomeDisplay}
-                </Text>
+                <View className="mt-1 gap-1 items-center">
+                  {todayIncomeEntries.map((entry) => (
+                    <Text
+                      key={`income-${entry.currency}`}
+                      className="text-base font-bold text-income"
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {entry.label}
+                    </Text>
+                  ))}
+                </View>
               </View>
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Expense</Text>
-                <Text className="text-lg font-bold text-expense mt-1">
-                  {todayExpenseDisplay}
-                </Text>
+                <View className="mt-1 gap-1 items-center">
+                  {todayExpenseEntries.map((entry) => (
+                    <Text
+                      key={`expense-${entry.currency}`}
+                      className="text-base font-bold text-expense"
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {entry.label}
+                    </Text>
+                  ))}
+                </View>
               </View>
               <View className="items-center flex-1">
                 <Text className="text-sm text-text-secondary-light">Balance</Text>
-                <Text className={`text-lg font-bold mt-1 ${todayBalanceClass}`}>
-                  {todayNetDisplay}
-                </Text>
+                <View className="mt-1 gap-1 items-center">
+                  {todayNetEntries.map((entry) => (
+                    <Text
+                      key={`net-${entry.currency}`}
+                      className={`text-base font-bold ${todayBalanceClass}`}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {entry.label}
+                    </Text>
+                  ))}
+                </View>
               </View>
             </View>
             <View className="flex-row justify-between items-center mt-3">
               <Text className="text-sm text-text-secondary-light">Previous Balance</Text>
-              <Text className={`text-sm font-semibold ${previousBalanceClass}`}>
-                {previousBalanceDisplay}
-              </Text>
+              <View className="items-end">
+                {previousBalanceEntries.map((entry) => (
+                  <Text
+                    key={`prev-${entry.currency}`}
+                    className={`text-xs font-semibold ${previousBalanceClass}`}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {entry.label}
+                  </Text>
+                ))}
+              </View>
             </View>
             <View className="flex-row justify-between items-center mt-2">
               <Text className="text-sm font-bold text-text-secondary-light">Total Balance</Text>
-              <Text className={`text-sm font-bold ${totalBalanceClass}`}>
-                {totalBalanceDisplay}
-              </Text>
+              <View className="items-end">
+                {totalBalanceEntries.map((entry) => (
+                  <Text
+                    key={`total-${entry.currency}`}
+                    className={`text-xs font-bold ${totalBalanceClass}`}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {entry.label}
+                  </Text>
+                ))}
+              </View>
             </View>
           </View>
 
