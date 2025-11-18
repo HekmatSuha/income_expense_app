@@ -214,7 +214,7 @@ export default function TransactionsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <View className="flex-1 bg-gray-100">
-        <View className="bg-[#0288D1]">
+        <View className="bg-blue-500">
           <View className="flex-row items-center justify-between px-4 py-4">
             <View className="flex-row items-center gap-4">
               <TouchableOpacity
@@ -257,7 +257,7 @@ export default function TransactionsScreen() {
                   <TouchableOpacity
                     key={filter}
                     className={`px-4 py-2 rounded-full ${
-                      isActive ? "bg-white" : "bg-white/20"
+                      isActive ? "bg-white" : "bg-blue-400"
                     }`}
                     activeOpacity={0.8}
                     onPress={() => {
@@ -269,7 +269,7 @@ export default function TransactionsScreen() {
                   >
                     <Text
                       className={`${
-                        isActive ? "text-gray-900" : "text-white"
+                        isActive ? "text-blue-500" : "text-white"
                       } text-sm font-medium`}
                     >
                       {filter}
@@ -281,7 +281,7 @@ export default function TransactionsScreen() {
           </ScrollView>
         </View>
 
-        <View className="bg-[#0288D1]">
+        <View className="bg-blue-500">
           <Text className="text-white text-center py-3 text-base font-medium">
             {activeFilter}
           </Text>
@@ -341,11 +341,12 @@ export default function TransactionsScreen() {
                 const { date, time } = formatDateTime(
                   transaction.date ?? transaction.createdAt
                 );
+                const isIncome = normalizeType(transaction.type) === "INCOME";
                 return (
                   <View
                     key={transaction.id}
-                    className={`${
-                      !isLast ? "border-b border-gray-200" : ""
+                    className={`border-b border-gray-100 ${
+                      !isLast ? "" : "border-transparent"
                     }`}
                   >
                     <View className="flex-row items-start px-4 py-4 gap-3">
@@ -359,33 +360,19 @@ export default function TransactionsScreen() {
                         {transaction.category}
                       </Text>
                       <Text
-                        className={`w-20 text-right text-sm ${
-                          normalizeType(transaction.type) === "INCOME"
-                            ? "text-green-600"
-                            : "text-transparent"
+                        className={`w-20 text-right text-sm font-bold ${
+                          isIncome ? "text-green-500" : "text-red-500"
                         }`}
                       >
-                        {normalizeType(transaction.type) === "INCOME"
-                          ? formatCurrency(transaction.amount)
-                          : "-"}
-                      </Text>
-                      <Text
-                        className={`w-20 text-right text-sm ${
-                          normalizeType(transaction.type) === "EXPENSE"
-                            ? "text-red-600"
-                            : "text-transparent"
-                        }`}
-                      >
-                        {normalizeType(transaction.type) === "EXPENSE"
-                          ? formatCurrency(transaction.amount)
-                          : "-"}
+                        {isIncome ? "+" : "-"}
+                        {formatCurrency(transaction.amount)}
                       </Text>
                     </View>
 
                     <View className="flex-row items-center justify-between px-4 pb-4">
                       <View className="flex-row items-center gap-2">
                         {transaction.paymentMethod ? (
-                          <View className="px-3 py-1 rounded-full border border-gray-300 bg-white">
+                          <View className="px-3 py-1 rounded-full border border-gray-300 bg-gray-100">
                             <Text className="text-xs font-medium text-gray-700">
                               {transaction.paymentMethod}
                             </Text>
@@ -408,13 +395,13 @@ export default function TransactionsScreen() {
         <View className="bg-white border-t border-gray-200">
           <View className="flex-row gap-3 px-4 py-4">
             <TouchableOpacity
-              className="flex-1 h-12 rounded-lg items-center justify-center bg-[#4CAF50]"
+              className="flex-1 h-12 rounded-lg items-center justify-center bg-green-500"
               activeOpacity={0.85}
             >
               <Text className="text-white font-semibold">Income</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className="flex-1 h-12 rounded-lg items-center justify-center bg-[#F44336]"
+              className="flex-1 h-12 rounded-lg items-center justify-center bg-red-500"
               activeOpacity={0.85}
             >
               <Text className="text-white font-semibold">Expense</Text>
