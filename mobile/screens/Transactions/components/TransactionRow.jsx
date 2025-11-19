@@ -11,15 +11,17 @@ const TransactionRow = ({ transaction }) => {
   const avatarLabel =
     (transaction.category?.[0] || transaction.type?.[0] || "?").toUpperCase();
 
+  const bgColor = isIncome ? "bg-emerald-50/30" : "bg-rose-50/30";
+  const borderColor = isIncome ? "border-emerald-100/50" : "border-rose-100/50";
+
   return (
-    <View className="px-4 py-3 bg-white border-b border-gray-50">
-      <View className="flex-row items-center gap-4">
+    <View className={`mx-4 mb-3 rounded-2xl border ${borderColor} ${bgColor} p-3`}>
+      <View className="flex-row items-center gap-3">
         <View
-          className={`h-12 w-12 rounded-full items-center justify-center ${isIncome ? "bg-emerald-100" : "bg-rose-100"
-            }`}
+          className={`h-10 w-10 rounded-full items-center justify-center bg-white shadow-sm`}
         >
           <Text
-            className={`text-lg font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"
+            className={`text-base font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"
               }`}
           >
             {avatarLabel}
@@ -29,15 +31,15 @@ const TransactionRow = ({ transaction }) => {
         <View className="flex-1">
           <View className="flex-row justify-between items-start">
             <View className="flex-1 mr-2">
-              <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
+              <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
                 {transaction.category || transaction.type}
               </Text>
-              <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+              <Text className="text-[11px] text-gray-500 mt-0.5" numberOfLines={1}>
                 {transaction.note || transaction.paymentMethod}
               </Text>
             </View>
             <View className="items-end">
-              <Text className={`text-base font-bold ${amountClass}`}>
+              <Text className={`text-sm font-bold ${amountClass}`}>
                 {isIncome ? "+" : "-"}
                 {transaction.displayAmount}
               </Text>

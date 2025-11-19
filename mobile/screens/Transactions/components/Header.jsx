@@ -12,11 +12,11 @@ const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
 
-const Header = ({ onAddTransaction }) => {
+const Header = ({ onExport }) => {
   const navigation = useNavigation();
 
   return (
-    <View className="bg-white shadow-sm">
+    <View className="bg-white shadow-sm z-20">
       <View className="flex-row items-center justify-between px-4 py-3">
         <View className="flex-row items-center gap-4">
           <TouchableOpacity
@@ -34,6 +34,13 @@ const Header = ({ onAddTransaction }) => {
             Transactions
           </Text>
         </View>
+        <TouchableOpacity
+          className="p-2 bg-gray-50 rounded-full"
+          activeOpacity={0.7}
+          onPress={onExport}
+        >
+          <Feather name="share" size={20} color="#4b5563" />
+        </TouchableOpacity>
       </View>
     </View>
   );

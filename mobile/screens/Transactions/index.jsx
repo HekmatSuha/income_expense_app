@@ -309,45 +309,35 @@ export default function TransactionsScreen() {
     }
   };
 
-  const totalIncome = useMemo(
-    () =>
-      filteredTransactions
-        .filter((transaction) => transaction.type === "INCOME")
-        .reduce(
-          (sum, transaction) => sum + (Number(transaction.amount) || 0),
-          0
-        ),
-    [filteredTransactions]
-  );
-
-  const totalExpense = useMemo(
-    () =>
-      filteredTransactions
-        .filter((transaction) => transaction.type === "EXPENSE")
-        .reduce(
-          (sum, transaction) => sum + (Number(transaction.amount) || 0),
-          0
-        ),
-    [filteredTransactions]
-  );
-
-  const balance = useMemo(
-    () => totalIncome - totalExpense,
-    [totalIncome, totalExpense]
-  );
-
-  const summaryCurrency = useMemo(() => {
-    if (filters.currency !== "ALL") {
-      return filters.currency;
+  const handleExport = async () => {
+    if (filteredTransactions.length === 0) {
+      alert("No transactions to export");
+      return;
     }
-    const unique = Array.from(
-      new Set(filteredTransactions.map((tx) => tx.currency).filter(Boolean))
-    );
-    if (unique.length === 1) {
-      return unique[0];
+    const { generateCSV, shareFile } = require("./utils/reporting");
+    const file = await generateCSV(filteredTransactions);
+    if (file) {
+      await shareFile(file);
     }
-    return filteredTransactions[0]?.currency || DEFAULT_CURRENCY;
-  }, [filters.currency, filteredTransactions]);
+  };
+
+  const summaryData = useMemo(() => {
+    const data = {};
+    filteredTransactions.forEach((t) => {
+      const curr = t.currency || DEFAULT_CURRENCY;
+      if (!data[curr]) {
+        data[curr] = { income: 0, expense: 0, balance: 0 };
+      }
+      const amount = Number(t.amount) || 0;
+      if (t.type === "INCOME") {
+        data[curr].income += amount;
+      } else {
+        data[curr].expense += amount; // Expense is usually negative or handled as such
+      }
+      data[curr].balance += amount;
+    });
+    return data;
+  }, [filteredTransactions]);
 
   const groupedTransactions = useMemo(() => {
     const groups = filteredTransactions.reduce((bucket, transaction) => {
@@ -368,13 +358,8 @@ export default function TransactionsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <View className="flex-1 bg-gray-100 relative">
-        <Header />
-        <Summary
-          totalIncome={totalIncome}
-          totalExpense={totalExpense}
-          balance={balance}
-          currency={summaryCurrency}
-        />
+        <Header onExport={handleExport} />
+        <Summary summaryData={summaryData} />
         <FilterBar
           filters={filters}
           updateFilter={updateFilter}
