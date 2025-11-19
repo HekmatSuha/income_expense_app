@@ -18,7 +18,7 @@ export const generateCSV = async (transactions) => {
 
   try {
     await FileSystem.writeAsStringAsync(filename, csvContent, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: FileSystem.EncodingType ? FileSystem.EncodingType.UTF8 : "utf8",
     });
     return filename;
   } catch (error) {
