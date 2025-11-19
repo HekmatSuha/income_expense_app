@@ -6,7 +6,7 @@ import { formatCurrencyValue } from "../../../utils/formatters";
 const View = styled(RNView);
 const Text = styled(RNText);
 
-const Summary = ({ totalIncome, totalExpense, balance }) => {
+const Summary = ({ totalIncome, totalExpense, balance, currency }) => {
   const incomeValue = Math.max(totalIncome, 0);
   const expenseValue = Math.abs(totalExpense);
   const totalVolume = incomeValue + expenseValue;
@@ -19,7 +19,7 @@ const Summary = ({ totalIncome, totalExpense, balance }) => {
           Balance
         </Text>
         <Text className="text-3xl font-bold text-gray-900 mt-1">
-          {formatCurrencyValue(balance)}
+          {formatCurrencyValue(balance, currency)}
         </Text>
         <Text className="text-xs text-gray-500 mt-2">
           Income vs expense for the selected range
@@ -36,7 +36,7 @@ const Summary = ({ totalIncome, totalExpense, balance }) => {
               Total Income
             </Text>
             <Text className="text-lg font-semibold text-emerald-700 mt-1">
-              {formatCurrencyValue(totalIncome)}
+              {formatCurrencyValue(totalIncome, currency)}
             </Text>
           </View>
           <View className="flex-1 rounded-2xl bg-rose-50 px-3 py-3">
@@ -44,7 +44,7 @@ const Summary = ({ totalIncome, totalExpense, balance }) => {
               Total Expense
             </Text>
             <Text className="text-lg font-semibold text-rose-600 mt-1">
-              {formatCurrencyValue(-Math.abs(totalExpense))}
+              {formatCurrencyValue(-Math.abs(totalExpense), currency)}
             </Text>
           </View>
         </View>

@@ -24,6 +24,7 @@ import Summary from "./components/Summary";
 import FilterBar from "./components/FilterBar";
 import TransactionsList from "./components/TransactionsList";
 import {
+  DEFAULT_CURRENCY,
   formatCurrencyValue,
   formatDateParts,
   toDate,
@@ -33,8 +34,6 @@ const SafeAreaView = styled(RNSafeAreaView);
 const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
-
-const DEFAULT_CURRENCY = "USD";
 
 const startOfDay = (date) => {
   const d = new Date(date);
@@ -336,6 +335,19 @@ export default function TransactionsScreen() {
     [totalIncome, totalExpense]
   );
 
+  const summaryCurrency = useMemo(() => {
+    if (filters.currency !== "ALL") {
+      return filters.currency;
+    }
+    const unique = Array.from(
+      new Set(filteredTransactions.map((tx) => tx.currency).filter(Boolean))
+    );
+    if (unique.length === 1) {
+      return unique[0];
+    }
+    return filteredTransactions[0]?.currency || DEFAULT_CURRENCY;
+  }, [filters.currency, filteredTransactions]);
+
   const groupedTransactions = useMemo(() => {
     const groups = filteredTransactions.reduce((bucket, transaction) => {
       const key = transaction.dateLabel;
@@ -356,6 +368,7 @@ export default function TransactionsScreen() {
           totalIncome={totalIncome}
           totalExpense={totalExpense}
           balance={balance}
+          currency={summaryCurrency}
         />
         <FilterBar
           filters={filters}

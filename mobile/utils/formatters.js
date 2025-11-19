@@ -1,4 +1,4 @@
-const DEFAULT_CURRENCY = "USD";
+export const DEFAULT_CURRENCY = "USD";
 
 export const toDate = (value) => {
   if (!value) {
