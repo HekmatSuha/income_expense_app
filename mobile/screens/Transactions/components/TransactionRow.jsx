@@ -32,10 +32,13 @@ const TransactionRow = ({ transaction }) => {
           <View className="flex-row justify-between items-start">
             <View className="flex-1 mr-2">
               <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-                {transaction.category || transaction.type}
+                {transaction.paymentAccount ||
+                  transaction.accountName ||
+                  transaction.paymentMethod}
               </Text>
               <Text className="text-[11px] text-gray-500 mt-0.5" numberOfLines={1}>
-                {transaction.note || transaction.paymentMethod}
+                {transaction.category || transaction.type}
+                {transaction.note ? ` • ${transaction.note}` : ""}
               </Text>
             </View>
             <View className="items-end">
