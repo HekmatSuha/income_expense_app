@@ -8,6 +8,7 @@ import {
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "../../packages/nativewind";
 import { auth } from "../../firebase";
+import { Feather } from "@expo/vector-icons";
 import {
   addTransaction,
   subscribeToRemoteTransactions,
@@ -357,13 +358,17 @@ export default function TransactionsScreen() {
       bucket[key].push(transaction);
       return bucket;
     }, {});
-    return Object.entries(groups);
+
+    return Object.entries(groups).map(([title, data]) => ({
+      title,
+      data,
+    }));
   }, [filteredTransactions]);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
-      <View className="flex-1 bg-gray-100">
-        <Header onAddTransaction={() => setAddTransactionModalVisible(true)} />
+      <View className="flex-1 bg-gray-100 relative">
+        <Header />
         <Summary
           totalIncome={totalIncome}
           totalExpense={totalExpense}
@@ -379,6 +384,14 @@ export default function TransactionsScreen() {
           showDatePicker={showDatePicker}
         />
         <TransactionsList groupedTransactions={groupedTransactions} />
+
+        <TouchableOpacity
+          className="absolute bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full items-center justify-center shadow-lg shadow-blue-600/40 z-50"
+          onPress={() => setAddTransactionModalVisible(true)}
+          activeOpacity={0.9}
+        >
+          <Feather name="plus" size={28} color="white" />
+        </TouchableOpacity>
 
         <Modal
           visible={isDatePickerVisible}

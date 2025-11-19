@@ -34,13 +34,6 @@ const Header = ({ onAddTransaction }) => {
             Transactions
           </Text>
         </View>
-        <TouchableOpacity
-          className="p-2"
-          activeOpacity={0.7}
-          onPress={onAddTransaction}
-        >
-          <Feather name="plus" size={22} color="#1f2937" />
-        </TouchableOpacity>
       </View>
     </View>
   );

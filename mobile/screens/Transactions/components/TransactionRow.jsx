@@ -12,55 +12,40 @@ const TransactionRow = ({ transaction }) => {
     (transaction.category?.[0] || transaction.type?.[0] || "?").toUpperCase();
 
   return (
-    <View className="px-4 py-2">
-      <View className="bg-white rounded-2xl px-4 py-4 border border-gray-100 shadow-sm">
-        <View className="flex-row justify-between items-start">
-          <View className="flex-row flex-1 gap-3">
-            <View
-              className={`h-12 w-12 rounded-2xl items-center justify-center ${
-                isIncome ? "bg-emerald-50" : "bg-rose-50"
+    <View className="px-4 py-3 bg-white border-b border-gray-50">
+      <View className="flex-row items-center gap-4">
+        <View
+          className={`h-12 w-12 rounded-full items-center justify-center ${isIncome ? "bg-emerald-100" : "bg-rose-100"
+            }`}
+        >
+          <Text
+            className={`text-lg font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"
               }`}
-            >
-              <Text
-                className={`text-base font-semibold ${
-                  isIncome ? "text-emerald-700" : "text-rose-600"
-                }`}
-              >
-                {avatarLabel}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-gray-900">
+          >
+            {avatarLabel}
+          </Text>
+        </View>
+
+        <View className="flex-1">
+          <View className="flex-row justify-between items-start">
+            <View className="flex-1 mr-2">
+              <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
                 {transaction.category || transaction.type}
               </Text>
-              <Text className="text-xs text-gray-500 mt-1">
-                {transaction.paymentMethod} -{" "}
-                {transaction.paymentAccount || "Unspecified"}
+              <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+                {transaction.note || transaction.paymentMethod}
               </Text>
-              {transaction.note ? (
-                <Text className="text-xs text-gray-400 mt-1" numberOfLines={1}>
-                  {transaction.note}
-                </Text>
-              ) : null}
+            </View>
+            <View className="items-end">
+              <Text className={`text-base font-bold ${amountClass}`}>
+                {isIncome ? "+" : "-"}
+                {transaction.displayAmount}
+              </Text>
+              <Text className="text-[10px] font-medium text-gray-400 mt-0.5">
+                {transaction.timeLabel}
+              </Text>
             </View>
           </View>
-          <View className="items-end">
-            <Text className={`text-base font-bold ${amountClass}`}>
-              {transaction.displayAmount}
-            </Text>
-            <Text className="text-[11px] text-gray-400 mt-1">
-              {transaction.currency}
-            </Text>
-          </View>
-        </View>
-        <View className="flex-row justify-between items-center mt-4">
-          <Text className="text-xs text-gray-400">{transaction.timeLabel}</Text>
-          {transaction.attachmentsCount ? (
-            <Text className="text-xs text-gray-400">
-              {transaction.attachmentsCount} attachment
-              {transaction.attachmentsCount > 1 ? "s" : ""}
-            </Text>
-          ) : null}
         </View>
       </View>
     </View>
