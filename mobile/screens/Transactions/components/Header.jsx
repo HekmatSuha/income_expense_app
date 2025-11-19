@@ -12,7 +12,7 @@ const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
 
-const Header = ({ onAddTransaction, onSearch }) => {
+const Header = ({ onAddTransaction }) => {
   const navigation = useNavigation();
 
   return (
@@ -34,22 +34,13 @@ const Header = ({ onAddTransaction, onSearch }) => {
             Transactions
           </Text>
         </View>
-        <View className="flex-row items-center gap-2">
-          <TouchableOpacity
-            className="p-2"
-            activeOpacity={0.7}
-            onPress={onAddTransaction}
-          >
-            <Feather name="plus" size={22} color="#1f2937" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="p-2"
-            activeOpacity={0.7}
-            onPress={onSearch}
-          >
-            <Feather name="search" size={22} color="#1f2937" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          className="p-2"
+          activeOpacity={0.7}
+          onPress={onAddTransaction}
+        >
+          <Feather name="plus" size={22} color="#1f2937" />
+        </TouchableOpacity>
       </View>
     </View>
   );
