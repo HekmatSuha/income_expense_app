@@ -129,7 +129,7 @@ const NavbarDrawer = ({
 
   const translateX = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [-drawerWidth, 0],
+    outputRange: [drawerWidth, 0],
   });
 
   const backdropOpacity = animation.interpolate({
@@ -139,7 +139,7 @@ const NavbarDrawer = ({
 
   return (
     <Modal transparent visible={shouldRender} onRequestClose={handleClosePress} animationType="none">
-      <View className="flex-1 flex-row">
+      <View className="flex-1 flex-row justify-end">
         {/* Backdrop */}
         <Animated.View
           style={{ opacity: backdropOpacity }}
@@ -158,9 +158,9 @@ const NavbarDrawer = ({
             width: drawerWidth,
             transform: [{ translateX }],
           }}
-          className="h-full bg-white shadow-2xl"
+          className="h-full bg-white shadow-2xl rounded-l-3xl overflow-hidden"
         >
-          <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'bottom']}>
+          <SafeAreaView className="flex-1 bg-white" edges={["top", "right", "bottom"]}>
             {/* Header Section */}
             <View className="px-6 pt-4 pb-6 border-b border-gray-100">
               <View className="flex-row justify-between items-start mb-6">
