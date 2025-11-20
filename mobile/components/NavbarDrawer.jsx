@@ -7,9 +7,11 @@ import {
   Text as RNText,
   TouchableOpacity as RNTouchableOpacity,
   ScrollView as RNScrollView,
+  Platform,
 } from "react-native";
 import { styled } from "../packages/nativewind";
 import { MaterialIcons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const View = styled(RNView);
 const Text = styled(RNText);
@@ -17,42 +19,64 @@ const TouchableOpacity = styled(RNTouchableOpacity);
 const ScrollView = styled(RNScrollView);
 
 const LANGUAGE_OPTIONS = [
-  { code: "en", label: "English" },
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "hi", label: "Hindi" },
+  { code: "en", label: "English", flag: "🇺🇸" },
+  { code: "es", label: "Spanish", flag: "🇪🇸" },
+  { code: "fr", label: "French", flag: "🇫🇷" },
+  { code: "hi", label: "Hindi", flag: "🇮🇳" },
 ];
 
-const MENU_ITEMS = [
+const MENU_SECTIONS = [
   {
-    key: "settings",
-    icon: "person-outline",
-    label: "User Settings",
-    helper: "Profile, accounts, and personalization",
+    title: "Account",
+    items: [
+      {
+        key: "profile",
+        icon: "person",
+        label: "My Profile",
+        color: "#4F46E5", // Indigo
+      },
+      {
+        key: "settings",
+        icon: "settings",
+        label: "Settings",
+        color: "#64748B", // Slate
+      },
+    ],
   },
   {
-    key: "security",
-    icon: "lock-outline",
-    label: "Security & Privacy",
-    helper: "Passcode, biometrics, and data privacy",
+    title: "Security & Privacy",
+    items: [
+      {
+        key: "security",
+        icon: "security",
+        label: "Security",
+        color: "#10B981", // Emerald
+      },
+      {
+        key: "notifications",
+        icon: "notifications",
+        label: "Notifications",
+        color: "#F59E0B", // Amber
+      },
+    ],
   },
   {
-    key: "notifications",
-    icon: "notifications-none",
-    label: "Notifications",
-    helper: "Push, email, and reminders",
+    title: "Support",
+    items: [
+      {
+        key: "support",
+        icon: "help",
+        label: "Help & Support",
+        color: "#3B82F6", // Blue
+      },
+      {
+        key: "feedback",
+        icon: "feedback",
+        label: "Send Feedback",
+        color: "#8B5CF6", // Violet
+      },
+    ],
   },
-  {
-    key: "support",
-    icon: "help-outline",
-    label: "Help & Support",
-    helper: "FAQ, chat, or email our team",
-  },
-];
-
-const SECONDARY_LINKS = [
-  { key: "theme", icon: "dark-mode", label: "Appearance" },
-  { key: "feedback", icon: "feedback", label: "Feedback" },
 ];
 
 const NavbarDrawer = ({
@@ -63,29 +87,31 @@ const NavbarDrawer = ({
   user,
   onItemPress,
 }) => {
-  const drawerWidth = useMemo(() => {
-    const screen = Dimensions.get("window").width;
-    return Math.min(screen * 0.82, 320);
-  }, []);
-  const animation = useRef(new Animated.Value(visible ? 0 : 1)).current;
+  const screenWidth = Dimensions.get("window").width;
+  const drawerWidth = Math.min(screenWidth * 0.85, 340);
+
+  const animation = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
       Animated.spring(animation, {
-        toValue: 0,
+        toValue: 1,
         useNativeDriver: true,
-        bounciness: 6,
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: false,
       }).start();
     } else {
       Animated.timing(animation, {
-        toValue: 1,
-        duration: 220,
+        toValue: 0,
+        duration: 250,
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-  }, [animation, visible]);
+  }, [visible, animation]);
 
   const handleClosePress = () => {
     if (visible) {
@@ -97,198 +123,158 @@ const NavbarDrawer = ({
     return null;
   }
 
-  const displayName = user?.displayName || "Guest";
-  const email = user?.email || "Not signed in";
+  const displayName = user?.displayName || "Guest User";
+  const email = user?.email || "Sign in to sync data";
+  const initial = displayName.charAt(0).toUpperCase();
 
-  const drawerStyle = {
-    width: drawerWidth,
-    transform: [
-      {
-        translateX: animation.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, -drawerWidth],
-        }),
-      },
-    ],
-  };
+  const translateX = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-drawerWidth, 0],
+  });
+
+  const backdropOpacity = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.5],
+  });
 
   return (
-    <Modal transparent visible statusBarTranslucent animationType="fade">
-      <View className="flex-1 bg-black/40">
-        <TouchableOpacity
-          className="absolute inset-0"
-          accessibilityRole="button"
-          accessibilityLabel="Close navigation overlay"
-          activeOpacity={1}
-          onPress={handleClosePress}
-        />
+    <Modal transparent visible={shouldRender} onRequestClose={handleClosePress} animationType="none">
+      <View className="flex-1 flex-row">
+        {/* Backdrop */}
         <Animated.View
-          style={drawerStyle}
-          className="absolute left-0 top-0 bottom-0 bg-white rounded-r-3xl overflow-hidden shadow-2xl"
+          style={{ opacity: backdropOpacity }}
+          className="absolute inset-0 bg-black"
         >
-          <View className="bg-primary/90 px-5 pt-12 pb-8">
-            <View className="flex-row justify-between items-start">
-              <View className="flex-1 pr-4">
-                <View className="flex-row items-center gap-3">
-                  <View className="w-12 h-12 rounded-full bg-white/20 items-center justify-center">
-                    <Text className="text-white text-lg font-semibold">
-                      {displayName.slice(0, 1).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className="text-white text-base font-semibold">{displayName}</Text>
-                    <Text className="text-white/70 text-xs">{email}</Text>
-                  </View>
+          <TouchableOpacity
+            className="flex-1"
+            activeOpacity={1}
+            onPress={handleClosePress}
+          />
+        </Animated.View>
+
+        {/* Drawer Content */}
+        <Animated.View
+          style={{
+            width: drawerWidth,
+            transform: [{ translateX }],
+          }}
+          className="h-full bg-white shadow-2xl"
+        >
+          <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'bottom']}>
+            {/* Header Section */}
+            <View className="px-6 pt-4 pb-6 border-b border-gray-100">
+              <View className="flex-row justify-between items-start mb-6">
+                <View className="w-14 h-14 rounded-full bg-primary items-center justify-center shadow-sm">
+                  <Text className="text-white text-2xl font-bold">{initial}</Text>
                 </View>
-                <View className="flex-row gap-2 mt-4 flex-wrap">
-                  <View className="px-3 py-1 rounded-full bg-white/20">
-                    <Text className="text-white text-[10px] tracking-widest font-semibold">
-                      LANGUAGE · {language.toUpperCase()}
-                    </Text>
-                  </View>
-                  <View className="px-3 py-1 rounded-full bg-white/20">
-                    <Text className="text-white text-[10px] tracking-widest font-semibold">
-                      PREMIUM READY
-                    </Text>
-                  </View>
-                </View>
+                <TouchableOpacity
+                  onPress={handleClosePress}
+                  className="p-2 -mr-2 rounded-full bg-gray-50"
+                >
+                  <MaterialIcons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                className="p-2 rounded-full bg-white/25"
-                onPress={handleClosePress}
-                accessibilityLabel="Close navigation drawer"
-              >
-                <MaterialIcons name="close" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            <View className="mt-5 flex-row gap-3">
-              <TouchableOpacity
-                className="flex-1 bg-white/15 rounded-2xl px-3 py-3"
-                activeOpacity={0.85}
-                onPress={() => onItemPress?.("profile")}
-              >
-                <Text className="text-white font-semibold text-sm">View Profile</Text>
-                <Text className="text-white/70 text-xs mt-1">See goals & achievements</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 bg-white/15 rounded-2xl px-3 py-3"
-                activeOpacity={0.85}
-                onPress={() => onItemPress?.("upgrade")}
-              >
-                <Text className="text-white font-semibold text-sm">Upgrade</Text>
-                <Text className="text-white/70 text-xs mt-1">Unlock analytics</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          <ScrollView
-            className="flex-1 px-5 pt-6 pb-10"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
-          >
-            <View className="mb-7">
-              <Text className="text-xs uppercase tracking-widest text-gray-400 mb-3">
-                Quick Settings
-              </Text>
-              <View className="rounded-3xl border border-gray-100 overflow-hidden bg-white">
-                {MENU_ITEMS.map((item, index) => (
-                  <TouchableOpacity
-                    key={item.key}
-                    activeOpacity={0.9}
-                    className={`px-4 py-4 flex-row items-center ${
-                      index !== 0 ? "border-t border-gray-100" : ""
-                    }`}
-                    onPress={() => onItemPress?.(item.key)}
-                  >
-                    <View className="w-11 h-11 rounded-2xl bg-primary/10 items-center justify-center mr-3">
-                      <MaterialIcons name={item.icon} size={22} color="#0288D1" />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-sm font-semibold text-gray-900">{item.label}</Text>
-                      <Text className="text-xs text-gray-500 mt-1">{item.helper}</Text>
-                    </View>
-                    <MaterialIcons name="chevron-right" size={22} color="#94A3B8" />
-                  </TouchableOpacity>
-                ))}
+              <View>
+                <Text className="text-xl font-bold text-gray-900 mb-1">{displayName}</Text>
+                <Text className="text-sm text-gray-500 font-medium">{email}</Text>
               </View>
+
+              {!user && (
+                <TouchableOpacity
+                  onPress={() => onItemPress?.('login')}
+                  className="mt-4 bg-primary py-2.5 px-4 rounded-xl flex-row items-center justify-center"
+                >
+                  <Text className="text-white font-semibold mr-2">Sign In / Register</Text>
+                  <MaterialIcons name="arrow-forward" size={18} color="white" />
+                </TouchableOpacity>
+              )}
             </View>
 
-            <View className="mb-7">
-              <Text className="text-xs uppercase tracking-widest text-gray-400 mb-3">
-                Language
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {LANGUAGE_OPTIONS.map((lang) => {
-                  const isActive = lang.code === language;
-                  return (
-                    <TouchableOpacity
-                      key={lang.code}
-                      activeOpacity={0.8}
-                      className={`px-4 py-2 rounded-full border ${
-                        isActive
-                          ? "border-primary bg-primary/10"
-                          : "border-gray-200 bg-white"
-                      }`}
-                      onPress={() => {
-                        if (!isActive) {
-                          onLanguageChange?.(lang.code);
-                        }
-                      }}
-                    >
-                      <Text
-                        className={`text-xs font-semibold ${
-                          isActive ? "text-primary" : "text-gray-600"
-                        }`}
-                      >
-                        {lang.label} · {lang.code.toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View className="mb-7">
-              <Text className="text-xs uppercase tracking-widest text-gray-400 mb-3">
-                Extras
-              </Text>
-              <View className="rounded-3xl border border-gray-100 bg-white overflow-hidden">
-                {SECONDARY_LINKS.map((item, index) => (
-                  <TouchableOpacity
-                    key={item.key}
-                    activeOpacity={0.85}
-                    className={`px-4 py-4 flex-row items-center ${
-                      index !== 0 ? "border-t border-gray-100" : ""
-                    }`}
-                    onPress={() => onItemPress?.(item.key)}
-                  >
-                    <MaterialIcons name={item.icon} size={22} color="#475569" />
-                    <Text className="ml-3 text-sm font-semibold text-gray-800">{item.label}</Text>
-                    <View className="ml-auto">
-                      <MaterialIcons name="chevron-right" size={20} color="#94A3B8" />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.9}
-              className="flex-row items-center justify-between px-4 py-4 rounded-3xl bg-gray-50 border border-gray-100"
-              onPress={() => onItemPress?.("logout")}
+            <ScrollView
+              className="flex-1"
+              contentContainerStyle={{ paddingVertical: 16 }}
+              showsVerticalScrollIndicator={false}
             >
-              <View className="flex-row items-center gap-3">
-                <View className="w-11 h-11 rounded-2xl bg-gray-200 items-center justify-center">
-                  <MaterialIcons name="logout" size={22} color="#111827" />
+              {/* Menu Items */}
+              {MENU_SECTIONS.map((section, sectionIndex) => (
+                <View key={section.title} className="mb-6 px-4">
+                  <Text className="px-2 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    {section.title}
+                  </Text>
+                  <View className="bg-gray-50 rounded-2xl overflow-hidden">
+                    {section.items.map((item, index) => (
+                      <TouchableOpacity
+                        key={item.key}
+                        onPress={() => {
+                          onItemPress?.(item.key);
+                          // Optional: Close drawer on item press? Usually better UX to keep open or let parent decide.
+                          // But for navigation items, closing is standard.
+                          // handleClosePress(); 
+                        }}
+                        className={`flex-row items-center p-4 ${index !== section.items.length - 1 ? 'border-b border-gray-100' : ''
+                          }`}
+                        activeOpacity={0.7}
+                      >
+                        <View
+                          className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                          style={{ backgroundColor: `${item.color}15` }}
+                        >
+                          <MaterialIcons name={item.icon} size={20} color={item.color} />
+                        </View>
+                        <Text className="flex-1 text-base font-medium text-gray-700">
+                          {item.label}
+                        </Text>
+                        <MaterialIcons name="chevron-right" size={20} color="#CBD5E1" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-                <View>
-                  <Text className="text-sm font-semibold text-gray-900">Sign out</Text>
-                  <Text className="text-xs text-gray-500">Switch account or exit</Text>
-                </View>
+              ))}
+
+              {/* Language Selector */}
+              <View className="px-6 mb-6">
+                <Text className="mb-3 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Language
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+                  {LANGUAGE_OPTIONS.map((opt) => {
+                    const isSelected = language === opt.code;
+                    return (
+                      <TouchableOpacity
+                        key={opt.code}
+                        onPress={() => onLanguageChange?.(opt.code)}
+                        className={`mr-3 px-4 py-2 rounded-full border flex-row items-center ${isSelected
+                            ? 'bg-primary border-primary'
+                            : 'bg-white border-gray-200'
+                          }`}
+                      >
+                        <Text className="text-base mr-2">{opt.flag}</Text>
+                        <Text className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-600'
+                          }`}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
-              <MaterialIcons name="chevron-right" size={20} color="#94A3B8" />
-            </TouchableOpacity>
-          </ScrollView>
+            </ScrollView>
+
+            {/* Footer */}
+            <View className="p-4 border-t border-gray-100">
+              <TouchableOpacity
+                onPress={() => onItemPress?.('logout')}
+                className="flex-row items-center justify-center p-4 rounded-2xl bg-red-50"
+              >
+                <MaterialIcons name="logout" size={20} color="#EF4444" />
+                <Text className="ml-2 font-semibold text-red-500">Sign Out</Text>
+              </TouchableOpacity>
+              <Text className="text-center text-xs text-gray-400 mt-4">
+                Version 1.0.0
+              </Text>
+            </View>
+          </SafeAreaView>
         </Animated.View>
       </View>
     </Modal>
