@@ -3,92 +3,58 @@ import {
   Animated,
   Dimensions,
   Modal,
-  View as RNView,
-  Text as RNText,
-  TouchableOpacity as RNTouchableOpacity,
-  ScrollView as RNScrollView,
-  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { styled } from "../packages/nativewind";
 import { MaterialIcons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 
-const View = styled(RNView);
-const Text = styled(RNText);
-const TouchableOpacity = styled(RNTouchableOpacity);
-const ScrollView = styled(RNScrollView);
-
-const LANGUAGE_OPTIONS = [
-  { code: "en", label: "English", flag: "🇺🇸" },
-  { code: "es", label: "Spanish", flag: "🇪🇸" },
-  { code: "fr", label: "French", flag: "🇫🇷" },
-  { code: "hi", label: "Hindi", flag: "🇮🇳" },
-];
-
-const MENU_SECTIONS = [
+const SECTIONS = [
   {
     title: "Account",
     items: [
-      {
-        key: "profile",
-        icon: "person",
-        label: "My Profile",
-        color: "#4F46E5", // Indigo
-      },
-      {
-        key: "settings",
-        icon: "settings",
-        label: "Settings",
-        color: "#64748B", // Slate
-      },
+      { key: "profile", icon: "person-outline", label: "My Profile" },
+      { key: "settings", icon: "settings", label: "Settings" },
     ],
   },
   {
     title: "Security & Privacy",
     items: [
-      {
-        key: "security",
-        icon: "security",
-        label: "Security",
-        color: "#10B981", // Emerald
-      },
-      {
-        key: "notifications",
-        icon: "notifications",
-        label: "Notifications",
-        color: "#F59E0B", // Amber
-      },
+      { key: "security", icon: "security", label: "Security" },
+      { key: "notifications", icon: "notifications-none", label: "Notifications" },
     ],
   },
   {
     title: "Support",
     items: [
-      {
-        key: "support",
-        icon: "help",
-        label: "Help & Support",
-        color: "#3B82F6", // Blue
-      },
-      {
-        key: "feedback",
-        icon: "feedback",
-        label: "Send Feedback",
-        color: "#8B5CF6", // Violet
-      },
+      { key: "support", icon: "help-outline", label: "Help & Support" },
+      { key: "feedback", icon: "feedback", label: "Send Feedback" },
     ],
   },
+];
+
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "hi", label: "Hindi" },
 ];
 
 const NavbarDrawer = ({
   visible,
   onClose,
+  onItemPress,
+  user,
   language = "en",
   onLanguageChange,
-  user,
-  onItemPress,
 }) => {
-  const screenWidth = Dimensions.get("window").width;
-  const drawerWidth = Math.min(screenWidth * 0.85, 340);
+  const drawerWidth = useMemo(() => {
+    const { width } = Dimensions.get("window");
+    return Math.min(width * 0.82, 320);
+  }, []);
 
   const animation = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -98,22 +64,21 @@ const NavbarDrawer = ({
       setShouldRender(true);
       Animated.spring(animation, {
         toValue: 1,
-        useNativeDriver: true,
-        damping: 20,
+        damping: 18,
+        stiffness: 120,
         mass: 1,
-        stiffness: 100,
-        overshootClamping: false,
+        useNativeDriver: true,
       }).start();
     } else {
       Animated.timing(animation, {
         toValue: 0,
-        duration: 250,
+        duration: 220,
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-  }, [visible, animation]);
+  }, [animation, visible]);
 
-  const handleClosePress = () => {
+  const handleClose = () => {
     if (visible) {
       onClose?.();
     }
@@ -123,160 +88,271 @@ const NavbarDrawer = ({
     return null;
   }
 
-  const displayName = user?.displayName || "Guest User";
-  const email = user?.email || "Sign in to sync data";
-  const initial = displayName.charAt(0).toUpperCase();
-
   const translateX = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [drawerWidth, 0],
   });
-
   const backdropOpacity = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 0.5],
+    outputRange: [0, 0.55],
   });
 
+  const displayName = user?.displayName || "Guest";
+  const email = user?.email || "Not signed in";
+
   return (
-    <Modal transparent visible={shouldRender} onRequestClose={handleClosePress} animationType="none">
-      <View className="flex-1 flex-row justify-end">
-        {/* Backdrop */}
+    <Modal transparent visible statusBarTranslucent animationType="none">
+      <View style={StyleSheet.absoluteFill}>
         <Animated.View
-          style={{ opacity: backdropOpacity }}
-          className="absolute inset-0 bg-black"
+          pointerEvents={visible ? "auto" : "none"}
+          style={[
+            StyleSheet.absoluteFillObject,
+            styles.backdrop,
+            { opacity: backdropOpacity },
+          ]}
         >
-          <TouchableOpacity
-            className="flex-1"
-            activeOpacity={1}
-            onPress={handleClosePress}
-          />
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         </Animated.View>
 
-        {/* Drawer Content */}
         <Animated.View
-          style={{
-            width: drawerWidth,
-            transform: [{ translateX }],
-          }}
-          className="h-full bg-white shadow-2xl rounded-l-3xl overflow-hidden"
+          style={[
+            styles.drawer,
+            { width: drawerWidth, transform: [{ translateX }] },
+          ]}
         >
-          <SafeAreaView className="flex-1 bg-white" edges={["top", "right", "bottom"]}>
-            {/* Header Section */}
-            <View className="px-6 pt-4 pb-6 border-b border-gray-100">
-              <View className="flex-row justify-between items-start mb-6">
-                <View className="w-14 h-14 rounded-full bg-primary items-center justify-center shadow-sm">
-                  <Text className="text-white text-2xl font-bold">{initial}</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={handleClosePress}
-                  className="p-2 -mr-2 rounded-full bg-gray-50"
-                >
-                  <MaterialIcons name="close" size={24} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-
-              <View>
-                <Text className="text-xl font-bold text-gray-900 mb-1">{displayName}</Text>
-                <Text className="text-sm text-gray-500 font-medium">{email}</Text>
-              </View>
-
-              {!user && (
-                <TouchableOpacity
-                  onPress={() => onItemPress?.('login')}
-                  className="mt-4 bg-primary py-2.5 px-4 rounded-xl flex-row items-center justify-center"
-                >
-                  <Text className="text-white font-semibold mr-2">Sign In / Register</Text>
-                  <MaterialIcons name="arrow-forward" size={18} color="white" />
-                </TouchableOpacity>
-              )}
+          <View style={styles.header}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarLabel}>{displayName.charAt(0).toUpperCase()}</Text>
             </View>
-
-            <ScrollView
-              className="flex-1"
-              contentContainerStyle={{ paddingVertical: 16 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Menu Items */}
-              {MENU_SECTIONS.map((section, sectionIndex) => (
-                <View key={section.title} className="mb-6 px-4">
-                  <Text className="px-2 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                    {section.title}
-                  </Text>
-                  <View className="bg-gray-50 rounded-2xl overflow-hidden">
-                    {section.items.map((item, index) => (
-                      <TouchableOpacity
-                        key={item.key}
-                        onPress={() => {
-                          onItemPress?.(item.key);
-                          handleClosePress(); 
-                        }}
-                        className={`flex-row items-center p-4 ${index !== section.items.length - 1 ? 'border-b border-gray-100' : ''
-                          }`}
-                        activeOpacity={0.7}
-                      >
-                        <View
-                          className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                          style={{ backgroundColor: `${item.color}15` }}
-                        >
-                          <MaterialIcons name={item.icon} size={20} color={item.color} />
-                        </View>
-                        <Text className="flex-1 text-base font-medium text-gray-700">
-                          {item.label}
-                        </Text>
-                        <MaterialIcons name="chevron-right" size={20} color="#CBD5E1" />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              ))}
-
-              {/* Language Selector */}
-              <View className="px-6 mb-6">
-                <Text className="mb-3 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Language
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
-                  {LANGUAGE_OPTIONS.map((opt) => {
-                    const isSelected = language === opt.code;
-                    return (
-                      <TouchableOpacity
-                        key={opt.code}
-                        onPress={() => onLanguageChange?.(opt.code)}
-                        className={`mr-3 px-4 py-2 rounded-full border flex-row items-center ${isSelected
-                            ? 'bg-primary border-primary'
-                            : 'bg-white border-gray-200'
-                          }`}
-                      >
-                        <Text className="text-base mr-2">{opt.flag}</Text>
-                        <Text className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-600'
-                          }`}>
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </ScrollView>
-
-            {/* Footer */}
-            <View className="p-4 border-t border-gray-100">
-              <TouchableOpacity
-                onPress={() => onItemPress?.('logout')}
-                className="flex-row items-center justify-center p-4 rounded-2xl bg-red-50"
-              >
-                <MaterialIcons name="logout" size={20} color="#EF4444" />
-                <Text className="ml-2 font-semibold text-red-500">Sign Out</Text>
-              </TouchableOpacity>
-              <Text className="text-center text-xs text-gray-400 mt-4">
-                Version 1.0.0
-              </Text>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{displayName}</Text>
+              <Text style={styles.userEmail}>{email}</Text>
             </View>
-          </SafeAreaView>
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <MaterialIcons name="close" size={22} color="#0f172a" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {SECTIONS.map((section) => (
+              <View key={section.title} style={styles.section}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                {section.items.map((item) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={styles.row}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      onItemPress?.(item.key);
+                      handleClose();
+                    }}
+                  >
+                    <View style={styles.iconBox}>
+                      <MaterialIcons name={item.icon} size={20} color="#0288D1" />
+                    </View>
+                    <Text style={styles.rowLabel}>{item.label}</Text>
+                    <MaterialIcons name="chevron-right" size={22} color="#94A3B8" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Language</Text>
+              <View style={styles.languageGrid}>
+                {LANGUAGES.map((lang) => {
+                  const isActive = lang.code === language;
+                  return (
+                    <TouchableOpacity
+                      key={lang.code}
+                      style={[
+                        styles.languageChip,
+                        isActive && styles.languageChipActive,
+                      ]}
+                      onPress={() => {
+                        onLanguageChange?.(lang.code);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.languageLabel,
+                          isActive && styles.languageLabelActive,
+                        ]}
+                      >
+                        {lang.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.footerButton}
+            activeOpacity={0.8}
+            onPress={() => {
+              onItemPress?.("logout");
+              handleClose();
+            }}
+          >
+            <MaterialIcons name="logout" size={20} color="#ef4444" />
+            <Text style={styles.footerButtonLabel}>Sign Out</Text>
+          </TouchableOpacity>
+          <Text style={styles.versionLabel}>Income Expense · v1.0.0</Text>
         </Animated.View>
       </View>
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  backdrop: {
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+  },
+  drawer: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 28,
+    borderBottomLeftRadius: 28,
+    paddingTop: 18,
+    paddingBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: -2, height: 0 },
+    shadowRadius: 12,
+    elevation: 16,
+  },
+  header: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#0288D1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarLabel: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  userInfo: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+  userEmail: {
+    fontSize: 13,
+    color: "#475569",
+    marginTop: 2,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: "#f1f5f9",
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    marginBottom: 8,
+    letterSpacing: 0.8,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomColor: "#e2e8f0",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#e0f2fe",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  rowLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: "#0f172a",
+    fontWeight: "500",
+  },
+  languageGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  languageChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#cbd5f5",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: "#fff",
+  },
+  languageChipActive: {
+    backgroundColor: "#0288D1",
+    borderColor: "#0288D1",
+  },
+  languageLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+  languageLabelActive: {
+    color: "#fff",
+  },
+  footerButton: {
+    marginHorizontal: 20,
+    marginTop: 6,
+    paddingVertical: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#fecdd3",
+    backgroundColor: "#fff1f2",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  footerButtonLabel: {
+    color: "#ef4444",
+    fontWeight: "700",
+  },
+  versionLabel: {
+    textAlign: "center",
+    marginTop: 8,
+    fontSize: 11,
+    color: "#94a3b8",
+  },
+});
 
 export default NavbarDrawer;
