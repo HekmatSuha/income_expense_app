@@ -1,4 +1,4 @@
-import { EncodingType, File, Paths } from "expo-file-system";
+import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { formatCurrencyValue } from "../../../utils/formatters";
 
@@ -17,7 +17,7 @@ export const generateCSV = async (transactions) => {
   const csvFile = new File(Paths.document, "transactions_report.csv");
 
   try {
-    csvFile.write(csvContent, { encoding: EncodingType.UTF8 });
+    csvFile.write(csvContent, { encoding: "utf8" });
     return csvFile.uri;
   } catch (error) {
     console.error("Error writing CSV", error);

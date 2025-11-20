@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
+  Alert,
   ScrollView as RNScrollView,
   View as RNView,
   Text as RNText,
@@ -23,6 +24,7 @@ import {
   setTransactionsForUser,
 } from "../storage/transactions";
 import Navigation from "../components/Navigation";
+import NavbarDrawer from "../components/NavbarDrawer";
 import { currencies } from "../constants/currencies";
 import { getBudgetForUser, setBudgetForUser } from "../storage/budget";
 
@@ -198,6 +200,8 @@ export default function HomeScreen({ navigation }) {
   const [monthlyBudget, setMonthlyBudget] = useState(null);
   const [isBudgetModalVisible, setBudgetModalVisible] = useState(false);
   const [budgetAmountInput, setBudgetAmountInput] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const [isNavbarVisible, setNavbarVisible] = useState(false);
   const [budgetCurrencyInput, setBudgetCurrencyInput] = useState(DEFAULT_CURRENCY);
   const [budgetError, setBudgetError] = useState("");
   const [isCurrencyPickerVisible, setCurrencyPickerVisible] = useState(false);
@@ -488,11 +492,61 @@ export default function HomeScreen({ navigation }) {
     [navigation]
   );
 
+  const handleDrawerItemPress = useCallback((itemKey) => {
+    setNavbarVisible(false);
+    switch (itemKey) {
+      case "settings":
+        Alert.alert(
+          "User Settings",
+          "Navigate to your profile to update personal details and app preferences."
+        );
+        break;
+      case "security":
+        Alert.alert(
+          "Security & Privacy",
+          "Biometric login, passcodes, and other security controls live here."
+        );
+        break;
+      case "notifications":
+        Alert.alert(
+          "Notifications",
+          "Configure push and email alerts from the notifications panel."
+        );
+        break;
+      case "support":
+        Alert.alert(
+          "Help & Support",
+          "Reach support@incomeexpense.app or browse FAQs from the help center."
+        );
+        break;
+      case "theme":
+        Alert.alert("Appearance", "Theme customization is coming soon!");
+        break;
+      case "feedback":
+        Alert.alert(
+          "Feedback",
+          "We'd love to hear your ideas. Send feedback from the help center."
+        );
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  const handleLanguageChange = useCallback((langCode) => {
+    setSelectedLanguage(langCode);
+    setNavbarVisible(false);
+  }, []);
+
   return (
     <SafeAreaView className="flex-1 bg-background-light">
       <View className="bg-primary px-4 pt-6 pb-4">
         <View className="flex-row items-center justify-between">
-          <TouchableOpacity className="p-2" activeOpacity={0.7}>
+          <TouchableOpacity
+            className="p-2"
+            activeOpacity={0.7}
+            onPress={() => setNavbarVisible(true)}
+          >
             <MaterialIcons name="menu" size={26} color="#FFFFFF" />
           </TouchableOpacity>
           <View className="items-center">
@@ -812,6 +866,14 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      <NavbarDrawer
+        visible={isNavbarVisible}
+        onClose={() => setNavbarVisible(false)}
+        language={selectedLanguage}
+        onLanguageChange={handleLanguageChange}
+        user={auth.currentUser}
+        onItemPress={handleDrawerItemPress}
+      />
     </SafeAreaView>
   );
 }
