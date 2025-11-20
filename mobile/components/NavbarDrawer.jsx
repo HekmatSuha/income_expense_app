@@ -208,9 +208,7 @@ const NavbarDrawer = ({
                         key={item.key}
                         onPress={() => {
                           onItemPress?.(item.key);
-                          // Optional: Close drawer on item press? Usually better UX to keep open or let parent decide.
-                          // But for navigation items, closing is standard.
-                          // handleClosePress(); 
+                          handleClosePress(); 
                         }}
                         className={`flex-row items-center p-4 ${index !== section.items.length - 1 ? 'border-b border-gray-100' : ''
                           }`}
