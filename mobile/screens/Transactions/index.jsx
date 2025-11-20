@@ -8,18 +8,13 @@ import {
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "../../packages/nativewind";
 import { auth } from "../../firebase";
-import { Feather } from "@expo/vector-icons";
-import {
-  addTransaction,
-  subscribeToRemoteTransactions,
-} from "../../services/transactions";
+import { subscribeToRemoteTransactions } from "../../services/transactions";
 import {
   LOCAL_USER_ID,
   getTransactionsForUser,
   setTransactionsForUser,
 } from "../../storage/transactions";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import AddTransaction from "../../components/AddTransaction";
 import Header from "./components/Header";
 import Summary from "./components/Summary";
 import FilterBar from "./components/FilterBar";
@@ -99,8 +94,6 @@ export default function TransactionsScreen() {
   });
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [isSettingStartDate, setIsSettingStartDate] = useState(true);
-  const [isAddTransactionModalVisible, setAddTransactionModalVisible] =
-    useState(false);
   const uid = auth.currentUser?.uid;
 
   const updateFilter = useCallback((key, value) => {
@@ -299,16 +292,6 @@ export default function TransactionsScreen() {
     setDatePickerVisible(true);
   };
 
-  const handleAddTransaction = async (transaction) => {
-    if (uid) {
-      await addTransaction(uid, transaction);
-    } else {
-      const newTransactions = [...transactions, transaction];
-      setTransactions(newTransactions);
-      await setTransactionsForUser(LOCAL_USER_ID, newTransactions);
-    }
-  };
-
   const handleExport = async () => {
     if (filteredTransactions.length === 0) {
       alert("No transactions to export");
@@ -370,14 +353,6 @@ export default function TransactionsScreen() {
         />
         <TransactionsList groupedTransactions={groupedTransactions} />
 
-        <TouchableOpacity
-          className="absolute bottom-6 right-6 w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg z-50"
-          onPress={() => setAddTransactionModalVisible(true)}
-          activeOpacity={0.9}
-        >
-          <Feather name="plus" size={28} color="white" />
-        </TouchableOpacity>
-
         <Modal
           visible={isDatePickerVisible}
           transparent={true}
@@ -434,11 +409,6 @@ export default function TransactionsScreen() {
           </View>
         </Modal>
 
-        <AddTransaction
-          isVisible={isAddTransactionModalVisible}
-          onClose={() => setAddTransactionModalVisible(false)}
-          onAddTransaction={handleAddTransaction}
-        />
       </View>
     </SafeAreaView>
   );
