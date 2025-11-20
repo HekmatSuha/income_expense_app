@@ -1,96 +1,110 @@
 import React from "react";
 import { View as RNView, Text as RNText } from "react-native";
 import { styled } from "../../../packages/nativewind";
-import { Feather } from "@expo/vector-icons";
 import { formatCurrencyValue } from "../../../utils/formatters";
+import { Feather } from "@expo/vector-icons";
 
 const View = styled(RNView);
 const Text = styled(RNText);
 
 const Summary = ({ summaryData }) => {
-  // summaryData is now an object: { [currency]: { income, expense, balance } }
-  const currencies = Object.keys(summaryData);
-  const primaryCurrency = currencies[0] || "USD";
-  const primaryData = summaryData[primaryCurrency] || {
-    income: 0,
-    expense: 0,
-    balance: 0,
-  };
-
-  const balanceString = currencies
-    .map((curr) => formatCurrencyValue(summaryData[curr].balance, curr))
-    .join(", ");
-
-  const incomeString = currencies
-    .map((curr) => formatCurrencyValue(summaryData[curr].income, curr))
-    .join(", ");
-
-  const expenseString = currencies
-    .map((curr) =>
-      formatCurrencyValue(-Math.abs(summaryData[curr].expense), curr)
-    )
-    .join(", ");
+  const entries = Object.entries(summaryData || {});
+  const fallback = [["USD", { income: 0, expense: 0, balance: 0 }]];
+  const displayEntries = entries.length ? entries : fallback;
+  const [primaryCurrency, primaryData] = displayEntries[0];
 
   const totalVolume = primaryData.income + Math.abs(primaryData.expense);
   const incomeShare = totalVolume
     ? (primaryData.income / totalVolume) * 100
     : 0;
 
+  const renderCurrencyRows = (valueSelector, valueClass) => (
+    <View className="mt-2 space-y-1">
+      {displayEntries.map(([currency, data]) => (
+        <View
+          key={`${valueClass}-${currency}`}
+          className="flex-row justify-between items-center"
+        >
+          <Text className="text-xs font-semibold text-text-secondary-light">
+            {currency}
+          </Text>
+          <Text
+            className={`text-sm font-bold ${valueClass}`}
+            numberOfLines={1}
+          >
+            {formatCurrencyValue(valueSelector(data), currency)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+
   return (
-    <View className="px-4 pt-4 pb-2 bg-gray-50">
-      <View className="rounded-3xl bg-white shadow-sm border border-gray-100 px-5 py-5">
-        <View className="items-center mb-5">
-          <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+    <View className="px-4 pt-4 pb-3 bg-background-light">
+      <View className="rounded-3xl bg-card-light shadow-md border border-gray-100 px-5 py-5">
+        <View className="mb-5">
+          <Text className="text-[10px] font-bold text-text-secondary-light uppercase tracking-widest mb-2">
             Total Balance
           </Text>
-          <Text className="text-2xl font-black text-gray-900 tracking-tight text-center">
-            {balanceString || formatCurrencyValue(0, primaryCurrency)}
-          </Text>
+          <View className="rounded-2xl border border-gray-100 bg-background-light px-4 py-3">
+            {renderCurrencyRows((data) => data.balance, "text-text-light")}
+          </View>
         </View>
 
         <View className="flex-row gap-3">
-          <View className="flex-1 bg-emerald-50/50 rounded-xl p-3 border border-emerald-100/50">
+          <View
+            className="flex-1 rounded-2xl p-4 border"
+            style={{
+              borderColor: "rgba(40, 167, 69, 0.25)",
+              backgroundColor: "rgba(40, 167, 69, 0.08)",
+            }}
+          >
             <View className="flex-row items-center gap-1.5 mb-1">
-              <View className="w-5 h-5 rounded-full bg-emerald-100 items-center justify-center">
-                <Feather name="arrow-down-left" size={12} color="#059669" />
+              <View className="w-6 h-6 rounded-full bg-white items-center justify-center shadow-sm">
+                <Feather name="arrow-down-left" size={14} color="#28A745" />
               </View>
-              <Text className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
+              <Text className="text-[11px] font-bold text-income uppercase tracking-wide">
                 Income
               </Text>
             </View>
-            <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-              {incomeString || formatCurrencyValue(0, primaryCurrency)}
-            </Text>
+            {renderCurrencyRows((data) => data.income, "text-income")}
           </View>
 
-          <View className="flex-1 bg-rose-50/50 rounded-xl p-3 border border-rose-100/50">
+          <View
+            className="flex-1 rounded-2xl p-4 border"
+            style={{
+              borderColor: "rgba(220, 53, 69, 0.25)",
+              backgroundColor: "rgba(220, 53, 69, 0.08)",
+            }}
+          >
             <View className="flex-row items-center gap-1.5 mb-1">
-              <View className="w-5 h-5 rounded-full bg-rose-100 items-center justify-center">
-                <Feather name="arrow-up-right" size={12} color="#e11d48" />
+              <View className="w-6 h-6 rounded-full bg-white items-center justify-center shadow-sm">
+                <Feather name="arrow-up-right" size={14} color="#DC3545" />
               </View>
-              <Text className="text-[10px] font-bold text-rose-700 uppercase tracking-wide">
+              <Text className="text-[11px] font-bold text-expense uppercase tracking-wide">
                 Expense
               </Text>
             </View>
-            <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-              {expenseString || formatCurrencyValue(0, primaryCurrency)}
-            </Text>
+            {renderCurrencyRows(
+              (data) => -Math.abs(data.expense),
+              "text-expense"
+            )}
           </View>
         </View>
 
-        {currencies.length === 1 && (
+        {displayEntries.length === 1 && (
           <View className="mt-5">
             <View className="flex-row justify-between mb-1.5">
-              <Text className="text-[10px] font-medium text-gray-400">
+              <Text className="text-[11px] font-medium text-text-secondary-light">
                 Cash Flow
               </Text>
-              <Text className="text-[10px] font-bold text-gray-600">
+              <Text className="text-[11px] font-bold text-text-light">
                 {Math.round(incomeShare)}% Income
               </Text>
             </View>
-            <View className="h-1 bg-gray-100 rounded-full overflow-hidden">
+            <View className="h-1.5 bg-background-light rounded-full overflow-hidden">
               <View
-                className="h-full bg-gray-900 rounded-full"
+                className="h-full bg-primary rounded-full"
                 style={{ width: `${incomeShare}%` }}
               />
             </View>

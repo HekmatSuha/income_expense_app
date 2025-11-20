@@ -5,48 +5,53 @@ import { styled } from "../../../packages/nativewind";
 const View = styled(RNView);
 const Text = styled(RNText);
 
+const typePalette = {
+  INCOME: { amount: "text-income", border: "border-l-income" },
+  EXPENSE: { amount: "text-expense", border: "border-l-expense" },
+  TRANSFER: { amount: "text-transactions", border: "border-l-transactions" },
+};
+
 const TransactionRow = ({ transaction }) => {
-  const isIncome = transaction.type === "INCOME";
-  const amountClass = isIncome ? "text-green-600" : "text-red-500";
+  const type = transaction.type?.toUpperCase() || "EXPENSE";
+  const palette = typePalette[type] || typePalette.EXPENSE;
   const avatarLabel =
     (transaction.category?.[0] || transaction.type?.[0] || "?").toUpperCase();
 
-  const bgColor = isIncome ? "bg-emerald-50/30" : "bg-rose-50/30";
-  const borderColor = isIncome ? "border-emerald-100/50" : "border-rose-100/50";
-
   return (
-    <View className={`mx-4 mb-3 rounded-2xl border ${borderColor} ${bgColor} p-3`}>
+    <View
+      className={`mx-4 mb-3 rounded-2xl bg-card-light border border-gray-100 shadow-sm p-4 border-l-4 ${palette.border}`}
+    >
       <View className="flex-row items-center gap-3">
-        <View
-          className={`h-10 w-10 rounded-full items-center justify-center bg-white shadow-sm`}
-        >
-          <Text
-            className={`text-base font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"
-              }`}
-          >
-            {avatarLabel}
-          </Text>
+        <View className="h-10 w-10 rounded-full bg-background-light border border-gray-100 items-center justify-center">
+          <Text className="text-base font-bold text-text-light">{avatarLabel}</Text>
         </View>
-
         <View className="flex-1">
           <View className="flex-row justify-between items-start">
             <View className="flex-1 mr-2">
-              <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-                {transaction.paymentAccount ||
-                  transaction.accountName ||
-                  transaction.paymentMethod}
-              </Text>
-              <Text className="text-[11px] text-gray-500 mt-0.5" numberOfLines={1}>
+              <Text className="text-sm font-bold text-text-light" numberOfLines={1}>
                 {transaction.category || transaction.type}
-                {transaction.note ? ` • ${transaction.note}` : ""}
               </Text>
+              <Text
+                className="text-[11px] text-text-secondary-light mt-0.5"
+                numberOfLines={1}
+              >
+                {transaction.paymentMethod}
+                {transaction.paymentAccount ? ` - ${transaction.paymentAccount}` : ""}
+              </Text>
+              {transaction.note ? (
+                <Text
+                  className="text-[11px] text-text-secondary-light mt-0.5"
+                  numberOfLines={1}
+                >
+                  {transaction.note}
+                </Text>
+              ) : null}
             </View>
             <View className="items-end">
-              <Text className={`text-sm font-bold ${amountClass}`}>
-                {isIncome ? "+" : "-"}
+              <Text className={`text-base font-bold ${palette.amount}`}>
                 {transaction.displayAmount}
               </Text>
-              <Text className="text-[10px] font-medium text-gray-400 mt-0.5">
+              <Text className="text-[10px] font-medium text-text-secondary-light mt-0.5">
                 {transaction.timeLabel}
               </Text>
             </View>

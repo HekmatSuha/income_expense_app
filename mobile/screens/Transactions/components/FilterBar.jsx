@@ -44,7 +44,7 @@ const FilterBar = ({
   const activeFiltersCount = activeBadges.length;
 
   const renderSectionTitle = (title) => (
-    <Text className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 mt-4">
+    <Text className="text-xs font-bold text-text-secondary-light uppercase tracking-wider mb-3 mt-4">
       {title}
     </Text>
   );
@@ -53,18 +53,20 @@ const FilterBar = ({
     label,
     isActive,
     onPress,
-    activeClass = "bg-blue-600",
+    activeClass = "bg-primary",
   }) => (
     <TouchableOpacity
       key={label}
-      className={`px-4 py-2 rounded-full mr-2 mb-2 ${isActive ? activeClass : "bg-gray-100"
-        }`}
+      className={`px-4 py-2 rounded-full mr-2 mb-2 ${
+        isActive ? activeClass : "bg-background-light"
+      }`}
       onPress={onPress}
       activeOpacity={0.85}
     >
       <Text
-        className={`text-sm font-medium ${isActive ? "text-white" : "text-gray-700"
-          }`}
+        className={`text-sm font-medium ${
+          isActive ? "text-white" : "text-text-light"
+        }`}
       >
         {label}
       </Text>
@@ -72,39 +74,40 @@ const FilterBar = ({
   );
 
   return (
-    <View className="bg-white border-b border-gray-200 shadow-sm z-10">
+    <View className="bg-card-light border-b border-gray-100 shadow-sm z-10">
       <View className="px-4 py-3 flex-row items-center gap-3">
-        <View className="flex-1 flex-row items-center bg-gray-100 rounded-2xl px-3 py-2.5">
-          <Feather name="search" size={18} color="#6B7280" />
+        <View className="flex-1 flex-row items-center bg-background-light rounded-2xl px-3 py-2.5 border border-gray-100">
+          <Feather name="search" size={18} color="#6C757D" />
           <TextInput
-            className="flex-1 px-2 text-sm text-gray-700"
+            className="flex-1 px-2 text-sm text-text-light"
             placeholder="Search transactions..."
             value={filters.query}
             onChangeText={(text) => updateFilter("query", text)}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#A0A7AE"
             returnKeyType="search"
           />
           {filters.query ? (
             <TouchableOpacity onPress={() => updateFilter("query", "")}>
-              <Feather name="x-circle" size={18} color="#9CA3AF" />
+              <Feather name="x-circle" size={18} color="#A0A7AE" />
             </TouchableOpacity>
           ) : null}
         </View>
         <TouchableOpacity
-          className={`flex-row items-center gap-2 px-4 py-2.5 rounded-2xl border ${activeFiltersCount
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-200 bg-white"
-            }`}
+          className={`flex-row items-center gap-2 px-4 py-2.5 rounded-2xl border ${
+            activeFiltersCount
+              ? "border-primary bg-primary/10"
+              : "border-gray-100 bg-card-light"
+          }`}
           onPress={() => setFilterModalVisible(true)}
           activeOpacity={0.7}
         >
           <Feather
             name="sliders"
             size={18}
-            color={activeFiltersCount ? "#2563eb" : "#4b5563"}
+            color={activeFiltersCount ? "#007BFF" : "#6C757D"}
           />
           {activeFiltersCount > 0 && (
-            <View className="bg-blue-600 rounded-full w-5 h-5 items-center justify-center">
+            <View className="bg-primary rounded-full w-5 h-5 items-center justify-center">
               <Text className="text-white text-[10px] font-bold">
                 {activeFiltersCount}
               </Text>
@@ -123,14 +126,14 @@ const FilterBar = ({
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-          <View className="flex-1 bg-gray-50">
-            <View className="bg-white px-4 py-4 border-b border-gray-200 flex-row justify-between items-center">
-              <Text className="text-lg font-bold text-gray-900">Filters</Text>
+          <View className="flex-1 bg-background-light">
+            <View className="bg-card-light px-4 py-4 border-b border-gray-100 flex-row justify-between items-center">
+              <Text className="text-lg font-bold text-text-light">Filters</Text>
               <TouchableOpacity
                 onPress={() => setFilterModalVisible(false)}
-                className="p-2 bg-gray-100 rounded-full"
+                className="p-2 bg-background-light rounded-full border border-gray-100"
               >
-                <Feather name="x" size={20} color="#374151" />
+                <Feather name="x" size={20} color="#6C757D" />
               </TouchableOpacity>
             </View>
 
@@ -143,12 +146,12 @@ const FilterBar = ({
                       filter === "ALL"
                         ? "All time"
                         : filter === "TODAY"
-                          ? "Today"
-                          : filter === "WEEK"
-                            ? "This week"
-                            : filter === "MONTH"
-                              ? "This month"
-                              : "Custom",
+                        ? "Today"
+                        : filter === "WEEK"
+                        ? "This week"
+                        : filter === "MONTH"
+                        ? "This month"
+                        : "Custom",
                     isActive: filters.period === filter,
                     onPress: () => {
                       updateFilter("period", filter);
@@ -156,7 +159,7 @@ const FilterBar = ({
                         showDatePicker(true);
                       }
                     },
-                    activeClass: "bg-indigo-600",
+                    activeClass: "bg-transactions",
                   })
                 )}
               </View>
@@ -164,22 +167,26 @@ const FilterBar = ({
               {filters.period === "CUSTOM" && (
                 <View className="flex-row gap-3 mt-2 mb-2">
                   <TouchableOpacity
-                    className="flex-1 border border-gray-200 bg-white rounded-xl px-3 py-3"
+                    className="flex-1 border border-gray-100 bg-card-light rounded-xl px-3 py-3"
                     onPress={() => showDatePicker(true)}
                   >
-                    <Text className="text-xs text-gray-500 mb-1">Start date</Text>
-                    <Text className="text-sm text-gray-900 font-semibold">
+                    <Text className="text-xs text-text-secondary-light mb-1">
+                      Start date
+                    </Text>
+                    <Text className="text-sm text-text-light font-semibold">
                       {filters.startDate
                         ? filters.startDate.toLocaleDateString()
                         : "-"}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    className="flex-1 border border-gray-200 bg-white rounded-xl px-3 py-3"
+                    className="flex-1 border border-gray-100 bg-card-light rounded-xl px-3 py-3"
                     onPress={() => showDatePicker(false)}
                   >
-                    <Text className="text-xs text-gray-500 mb-1">End date</Text>
-                    <Text className="text-sm text-gray-900 font-semibold">
+                    <Text className="text-xs text-text-secondary-light mb-1">
+                      End date
+                    </Text>
+                    <Text className="text-sm text-text-light font-semibold">
                       {filters.endDate
                         ? filters.endDate.toLocaleDateString()
                         : "-"}
@@ -198,7 +205,7 @@ const FilterBar = ({
                         : filter.charAt(0) + filter.slice(1).toLowerCase(),
                     isActive: filters.type === filter,
                     onPress: () => updateFilter("type", filter),
-                    activeClass: "bg-blue-600",
+                    activeClass: "bg-primary",
                   })
                 )}
               </View>
@@ -210,7 +217,7 @@ const FilterBar = ({
                     label: method === "ALL" ? "All Methods" : method,
                     isActive: filters.paymentMethod === method,
                     onPress: () => updateFilter("paymentMethod", method),
-                    activeClass: "bg-emerald-600",
+                    activeClass: "bg-income",
                   })
                 )}
               </View>
@@ -222,7 +229,7 @@ const FilterBar = ({
                     label: currency === "ALL" ? "All Currencies" : currency,
                     isActive: filters.currency === currency,
                     onPress: () => updateFilter("currency", currency),
-                    activeClass: "bg-purple-600",
+                    activeClass: "bg-transactions",
                   })
                 )}
               </View>
@@ -230,9 +237,11 @@ const FilterBar = ({
               {renderSectionTitle("Amount Range")}
               <View className="flex-row gap-3 mb-8">
                 <View className="flex-1">
-                  <Text className="text-xs text-gray-500 mb-1 ml-1">Minimum</Text>
+                  <Text className="text-xs text-text-secondary-light mb-1 ml-1">
+                    Minimum
+                  </Text>
                   <TextInput
-                    className="bg-white border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-900"
+                    className="bg-card-light border border-gray-100 rounded-xl px-3 py-3 text-sm text-text-light"
                     keyboardType="numeric"
                     placeholder="0"
                     value={filters.minAmount}
@@ -242,9 +251,11 @@ const FilterBar = ({
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-xs text-gray-500 mb-1 ml-1">Maximum</Text>
+                  <Text className="text-xs text-text-secondary-light mb-1 ml-1">
+                    Maximum
+                  </Text>
                   <TextInput
-                    className="bg-white border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-900"
+                    className="bg-card-light border border-gray-100 rounded-xl px-3 py-3 text-sm text-text-light"
                     keyboardType="numeric"
                     placeholder="Any"
                     value={filters.maxAmount}
@@ -256,15 +267,15 @@ const FilterBar = ({
               </View>
             </ScrollView>
 
-            <View className="p-4 bg-white border-t border-gray-200 flex-row gap-3 pb-8">
+            <View className="p-4 bg-card-light border-t border-gray-100 flex-row gap-3 pb-8">
               <TouchableOpacity
-                className="flex-1 py-3.5 rounded-xl bg-gray-100 items-center"
+                className="flex-1 py-3.5 rounded-xl bg-background-light border border-gray-100 items-center"
                 onPress={handleClearFilters}
               >
-                <Text className="text-gray-700 font-bold">Reset All</Text>
+                <Text className="text-text-light font-bold">Reset All</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="flex-[2] py-3.5 rounded-xl bg-blue-600 items-center"
+                className="flex-[2] py-3.5 rounded-xl bg-primary items-center"
                 onPress={() => setFilterModalVisible(false)}
               >
                 <Text className="text-white font-bold">Apply Filters</Text>

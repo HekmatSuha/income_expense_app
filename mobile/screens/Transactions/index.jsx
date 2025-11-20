@@ -356,8 +356,8 @@ export default function TransactionsScreen() {
   }, [filteredTransactions]);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      <View className="flex-1 bg-gray-100 relative">
+    <SafeAreaView className="flex-1 bg-background-light">
+      <View className="flex-1 bg-background-light relative">
         <Header onExport={handleExport} />
         <Summary summaryData={summaryData} />
         <FilterBar
@@ -371,7 +371,7 @@ export default function TransactionsScreen() {
         <TransactionsList groupedTransactions={groupedTransactions} />
 
         <TouchableOpacity
-          className="absolute bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full items-center justify-center shadow-lg shadow-blue-600/40 z-50"
+          className="absolute bottom-6 right-6 w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg z-50"
           onPress={() => setAddTransactionModalVisible(true)}
           activeOpacity={0.9}
         >
@@ -384,26 +384,28 @@ export default function TransactionsScreen() {
           animationType="slide"
         >
           <View className="flex-1 justify-center items-center bg-black/50">
-            <View className="bg-white rounded-lg p-5 w-5/6">
-              <Text className="text-lg font-bold mb-4">Select Date Range</Text>
+            <View className="bg-card-light rounded-3xl p-5 w-5/6 border border-gray-100">
+              <Text className="text-lg font-bold text-text-light mb-4">
+                Select Date Range
+              </Text>
               <View className="flex-row justify-around mb-4">
                 <TouchableOpacity
-                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                  className="flex-1 px-3 py-2 border border-gray-100 rounded-2xl mr-2 bg-background-light"
                   onPress={() => showDatePicker(true)}
                 >
-                  <Text className="text-xs text-gray-500">Start date</Text>
-                  <Text className="text-sm font-semibold text-gray-800">
+                  <Text className="text-xs text-text-secondary-light">Start date</Text>
+                  <Text className="text-sm font-semibold text-text-light">
                     {filters.startDate
                       ? filters.startDate.toLocaleDateString()
                       : "-"}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                  className="flex-1 px-3 py-2 border border-gray-100 rounded-2xl ml-2 bg-background-light"
                   onPress={() => showDatePicker(false)}
                 >
-                  <Text className="text-xs text-gray-500">End date</Text>
-                  <Text className="text-sm font-semibold text-gray-800">
+                  <Text className="text-xs text-text-secondary-light">End date</Text>
+                  <Text className="text-sm font-semibold text-text-light">
                     {filters.endDate
                       ? filters.endDate.toLocaleDateString()
                       : "-"}
@@ -423,7 +425,7 @@ export default function TransactionsScreen() {
                 />
               )}
               <TouchableOpacity
-                className="mt-4 px-4 py-2 rounded-full bg-blue-500 self-end"
+                className="mt-4 px-4 py-2 rounded-full bg-primary self-end"
                 onPress={() => setDatePickerVisible(false)}
               >
                 <Text className="text-white font-semibold">Done</Text>

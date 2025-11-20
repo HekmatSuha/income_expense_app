@@ -17,13 +17,13 @@ const TransactionsList = ({ groupedTransactions }) => {
   if (groupedTransactions.length === 0) {
     return (
       <View className="flex-1 items-center justify-center px-4 pt-20">
-        <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-          <Feather name="inbox" size={32} color="#9CA3AF" />
+        <View className="w-20 h-20 bg-background-light border border-gray-100 rounded-full items-center justify-center mb-4">
+          <Feather name="inbox" size={32} color="#A0A7AE" />
         </View>
-        <Text className="text-gray-900 text-lg font-bold mb-2">
+        <Text className="text-text-light text-lg font-bold mb-2">
           No transactions found
         </Text>
-        <Text className="text-gray-500 text-center px-8">
+        <Text className="text-text-secondary-light text-center px-8">
           Try adjusting your filters or add a new transaction to get started.
         </Text>
       </View>
@@ -49,18 +49,18 @@ const TransactionsList = ({ groupedTransactions }) => {
         );
 
         return (
-          <View className="bg-gray-100 px-4 py-2 flex-row justify-between items-center">
-            <Text className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+          <View className="bg-background-light border-y border-gray-100 px-4 py-2 flex-row justify-between items-center">
+            <Text className="text-xs font-bold text-text-secondary-light uppercase tracking-wider">
               {title}
             </Text>
             <View className="flex-row gap-3">
               {summary.income > 0 && (
-                <Text className="text-xs font-bold text-emerald-600">
+                <Text className="text-xs font-bold text-income">
                   +{formatCurrencyValue(summary.income, data[0]?.currency)}
                 </Text>
               )}
               {summary.expense > 0 && (
-                <Text className="text-xs font-bold text-rose-600">
+                <Text className="text-xs font-bold text-expense">
                   -{formatCurrencyValue(summary.expense, data[0]?.currency)}
                 </Text>
               )}
