@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import { EncodingType, File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { formatCurrencyValue } from "../../../utils/formatters";
 
@@ -14,13 +14,11 @@ export const generateCSV = async (transactions) => {
     .join("\n");
 
   const csvContent = header + rows;
-  const filename = FileSystem.documentDirectory + "transactions_report.csv";
+  const csvFile = new File(Paths.document, "transactions_report.csv");
 
   try {
-    await FileSystem.writeAsStringAsync(filename, csvContent, {
-      encoding: FileSystem.EncodingType ? FileSystem.EncodingType.UTF8 : "utf8",
-    });
-    return filename;
+    csvFile.write(csvContent, { encoding: EncodingType.UTF8 });
+    return csvFile.uri;
   } catch (error) {
     console.error("Error writing CSV", error);
     return null;

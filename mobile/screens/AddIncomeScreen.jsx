@@ -22,7 +22,7 @@ import { getBankAccounts } from "../services/bankAccountRepository";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import { getContentUriAsync } from "expo-file-system/legacy";
 import * as IntentLauncher from "expo-intent-launcher";
 import {
   addIncomeCategory as persistIncomeCategory,
@@ -392,7 +392,7 @@ export default function AddIncomeScreen({ navigation }) {
         if (isLocalContent) {
           let androidUri = file.uri;
           if (androidUri.startsWith("file://")) {
-            androidUri = await FileSystem.getContentUriAsync(androidUri);
+            androidUri = await getContentUriAsync(androidUri);
           }
           await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.VIEW, {
             data: androidUri,
