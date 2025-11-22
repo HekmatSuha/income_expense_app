@@ -528,10 +528,25 @@ export default function HomeScreen({ navigation }) {
           "We'd love to hear your ideas. Send feedback from the help center."
         );
         break;
+      case "logout":
+        try {
+          auth.signOut();
+          // Navigation to Login is usually handled by an auth state listener in App.jsx or similar,
+          // but if not, we might need navigation.replace('Login').
+          // For now, assuming auth listener handles it or just sign out.
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        } catch (error) {
+          console.error("Sign out failed", error);
+          Alert.alert("Error", "Failed to sign out. Please try again.");
+        }
+        break;
       default:
         break;
     }
-  }, []);
+  }, [navigation]);
 
   const handleLanguageChange = useCallback((langCode) => {
     setSelectedLanguage(langCode);

@@ -13,6 +13,7 @@ import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
+import { auth } from "../firebase";
 import {
   addBankAccount,
   getBankAccounts,
@@ -20,7 +21,9 @@ import {
   deleteBankAccount,
 } from "../services/bankAccountRepository";
 import Navigation from "../components/Navigation";
+import NavbarDrawer from "../components/NavbarDrawer";
 import AccountActionsMenu from "../components/menus/AccountActionsMenu";
+import { currencies } from "../constants/currencies";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -28,7 +31,6 @@ const View = styled(RNView);
 const Text = styled(RNText);
 const TextInput = styled(RNTextInput);
 const TouchableOpacity = styled(RNTouchableOpacity);
-import { currencies } from "../constants/currencies";
 
 function formatCurrency(value, currency) {
   return (Number(value) || 0).toLocaleString(undefined, {
@@ -64,6 +66,8 @@ export default function BankAccountsScreen({ navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [isAddAccountModalVisible, setAddAccountModalVisible] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
+  const [isNavbarVisible, setNavbarVisible] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
@@ -233,6 +237,64 @@ export default function BankAccountsScreen({ navigation }) {
     }
   };
 
+  const handleDrawerItemPress = useCallback((itemKey) => {
+    setNavbarVisible(false);
+    switch (itemKey) {
+      case "settings":
+        Alert.alert(
+          "User Settings",
+          "Navigate to your profile to update personal details and app preferences."
+        );
+        break;
+      case "security":
+        Alert.alert(
+          "Security & Privacy",
+          "Biometric login, passcodes, and other security controls live here."
+        );
+        break;
+      case "notifications":
+        Alert.alert(
+          "Notifications",
+          "Configure push and email alerts from the notifications panel."
+        );
+        break;
+      case "support":
+        Alert.alert(
+          "Help & Support",
+          "Reach support@incomeexpense.app or browse FAQs from the help center."
+        );
+        break;
+      case "theme":
+        Alert.alert("Appearance", "Theme customization is coming soon!");
+        break;
+      case "feedback":
+        Alert.alert(
+          "Feedback",
+          "We'd love to hear your ideas. Send feedback from the help center."
+        );
+        break;
+      case "logout":
+        try {
+          auth.signOut();
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        } catch (error) {
+          console.error("Sign out failed", error);
+          Alert.alert("Error", "Failed to sign out. Please try again.");
+        }
+        break;
+      default:
+        break;
+    }
+  }, [navigation]);
+
+  const handleLanguageChange = useCallback((langCode) => {
+    setSelectedLanguage(langCode);
+    setNavbarVisible(false);
+  }, []);
+
   const modalTitle = editingAccount ? "Edit bank account" : "New bank account";
   const primaryActionLabel = submitting
     ? "Saving..."
@@ -244,7 +306,14 @@ export default function BankAccountsScreen({ navigation }) {
     <SafeAreaView className="flex-1 bg-brand-surface">
       <View className="bg-brand-sky px-4 py-5">
         <View className="flex-row items-center justify-between">
-          <Text className="text-white text-xl font-semibold">Bank Accounts</Text>
+          <TouchableOpacity
+            className="p-1 mr-2"
+            activeOpacity={0.7}
+            onPress={() => setNavbarVisible(true)}
+          >
+            <MaterialIcons name="menu" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text className="text-white text-xl font-semibold flex-1">Bank Accounts</Text>
           <View className="bg-white-15 rounded-full p-3">
             <MaterialIcons name="account-balance" size={24} color="#FFFFFF" />
           </View>
@@ -436,6 +505,14 @@ export default function BankAccountsScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      <NavbarDrawer
+        visible={isNavbarVisible}
+        onClose={() => setNavbarVisible(false)}
+        language={selectedLanguage}
+        onLanguageChange={handleLanguageChange}
+        user={auth.currentUser}
+        onItemPress={handleDrawerItemPress}
+      />
     </SafeAreaView>
   );
 }

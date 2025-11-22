@@ -6,6 +6,7 @@ import {
   TextInput as RNTextInput,
   TouchableOpacity as RNTouchableOpacity,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -22,6 +23,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import Navigation from "../components/Navigation";
+import NavbarDrawer from "../components/NavbarDrawer";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -169,6 +171,8 @@ export default function NotebookScreen({ navigation }) {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
+  const [isNavbarVisible, setNavbarVisible] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
 
   const filteredNotes = useMemo(() => {
     if (activeFilter === "all") {
@@ -395,11 +399,78 @@ export default function NotebookScreen({ navigation }) {
     setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
+  const handleDrawerItemPress = useCallback((itemKey) => {
+    setNavbarVisible(false);
+    switch (itemKey) {
+      case "settings":
+        Alert.alert(
+          "User Settings",
+          "Navigate to your profile to update personal details and app preferences."
+        );
+        break;
+      case "security":
+        Alert.alert(
+          "Security & Privacy",
+          "Biometric login, passcodes, and other security controls live here."
+        );
+        break;
+      case "notifications":
+        Alert.alert(
+          "Notifications",
+          "Configure push and email alerts from the notifications panel."
+        );
+        break;
+      case "support":
+        Alert.alert(
+          "Help & Support",
+          "Reach support@incomeexpense.app or browse FAQs from the help center."
+        );
+        break;
+      case "theme":
+        Alert.alert("Appearance", "Theme customization is coming soon!");
+        break;
+      case "feedback":
+        Alert.alert(
+          "Feedback",
+          "We'd love to hear your ideas. Send feedback from the help center."
+        );
+        break;
+      case "logout":
+        try {
+          auth.signOut();
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        } catch (error) {
+          console.error("Sign out failed", error);
+          Alert.alert("Error", "Failed to sign out. Please try again.");
+        }
+        break;
+      default:
+        break;
+    }
+  }, [navigation]);
+
+  const handleLanguageChange = useCallback((langCode) => {
+    setSelectedLanguage(langCode);
+    setNavbarVisible(false);
+  }, []);
+
   return (
     <SafeAreaView className="flex-1 bg-[#F2F5F9]">
       <View className="bg-[#0288D1] px-4 py-5">
         <View className="flex-row items-center justify-between">
-          <Text className="text-white text-xl font-semibold">Notebook</Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              className="p-1 mr-2"
+              activeOpacity={0.7}
+              onPress={() => setNavbarVisible(true)}
+            >
+              <MaterialIcons name="menu" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text className="text-white text-xl font-semibold">Notebook</Text>
+          </View>
           <View className="flex-row items-center space-x-3">
             <TouchableOpacity className="p-1" activeOpacity={0.7}>
               <MaterialIcons name="search" size={22} color="#FFFFFF" />
@@ -695,6 +766,14 @@ export default function NotebookScreen({ navigation }) {
           </View>
         </View>
       </View>
+      <NavbarDrawer
+        visible={isNavbarVisible}
+        onClose={() => setNavbarVisible(false)}
+        language={selectedLanguage}
+        onLanguageChange={handleLanguageChange}
+        user={auth.currentUser}
+        onItemPress={handleDrawerItemPress}
+      />
     </SafeAreaView>
   );
 }
