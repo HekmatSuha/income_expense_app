@@ -1,17 +1,26 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
   ScrollView as RNScrollView,
   View as RNView,
   Text as RNText,
   TextInput as RNTextInput,
   TouchableOpacity as RNTouchableOpacity,
+  Modal,
+  FlatList,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { styled } from "../packages/nativewind";
-import { addBankAccount, getBankAccounts } from "../services/bankAccountRepository";
+import {
+  addBankAccount,
+  getBankAccounts,
+  updateBankAccount,
+  deleteBankAccount,
+} from "../services/bankAccountRepository";
 import Navigation from "../components/Navigation";
+import AccountActionsMenu from "../components/menus/AccountActionsMenu";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -19,9 +28,7 @@ const View = styled(RNView);
 const Text = styled(RNText);
 const TextInput = styled(RNTextInput);
 const TouchableOpacity = styled(RNTouchableOpacity);
-
 import { currencies } from "../constants/currencies";
-import { Modal, FlatList } from "react-native";
 
 function formatCurrency(value, currency) {
   return (Number(value) || 0).toLocaleString(undefined, {
@@ -56,6 +63,7 @@ export default function BankAccountsScreen({ navigation }) {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isAddAccountModalVisible, setAddAccountModalVisible] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(null);
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
@@ -95,7 +103,7 @@ export default function BankAccountsScreen({ navigation }) {
       .join(", ");
   }, [accounts]);
 
-  const handleAddAccount = useCallback(async () => {
+  const handleSaveAccount = useCallback(async () => {
     const trimmedName = name.trim();
     const trimmedType = type.trim();
     const parsedBalance = Number(balance.replace(/,/g, ""));
@@ -117,25 +125,101 @@ export default function BankAccountsScreen({ navigation }) {
         currency: accountCurrency,
       };
 
-      const newAccount = await addBankAccount(accountPayload);
+      let savedAccount;
+      if (editingAccount) {
+        savedAccount = await updateBankAccount(editingAccount.id, {
+          id: editingAccount.id,
+          ...accountPayload,
+        });
+        setAccounts((prev) =>
+          prev.map((account) => (account.id === savedAccount.id ? savedAccount : account))
+        );
+      } else {
+        savedAccount = await addBankAccount(accountPayload);
+        setAccounts((prev) => [savedAccount, ...prev]);
+      }
 
-      setAccounts((prev) => [newAccount, ...prev]);
       setName("");
       setType("");
       setBalance("");
       setFormError("");
+      setEditingAccount(null);
       setAddAccountModalVisible(false);
     } catch (error) {
-      console.error("Failed to create bank account", error);
-      if (error.message === "auth/not-authenticated") {
-        setFormError("You must be logged in to add a bank account.");
-      } else {
-        setFormError("Unable to add bank account. Please try again.");
-      }
+      console.error("Failed to save bank account", error);
+      setFormError("Unable to save bank account. Please try again.");
     } finally {
       setSubmitting(false);
     }
-  }, [balance, name, type, currency]);
+  }, [balance, name, type, currency, editingAccount]);
+
+  const openCreateAccountModal = useCallback(() => {
+    setEditingAccount(null);
+    setName("");
+    setType("");
+    setBalance("");
+    setCurrency(currencies[0]);
+    setFormError("");
+    setAddAccountModalVisible(true);
+  }, []);
+
+  const handleEditAccountPress = useCallback((account) => {
+    if (!account) {
+      return;
+    }
+    setEditingAccount(account);
+    setName(account?.name || "");
+    setType(account?.type || "");
+    const resolvedBalance =
+      account?.startingBalance ?? account?.balance ?? "";
+    setBalance(
+      resolvedBalance === "" || resolvedBalance === null
+        ? ""
+        : String(resolvedBalance)
+    );
+    const match =
+      currencies.find((item) => {
+        const value = item.value || item.code || item.label;
+        return value === (account?.currency || "USD");
+      }) || { label: account?.currency || "USD", value: account?.currency || "USD" };
+    setCurrency(match);
+    setFormError("");
+    setAddAccountModalVisible(true);
+  }, []);
+
+  const handleDeleteAccount = useCallback(
+    async (accountId) => {
+      try {
+        await deleteBankAccount(accountId);
+        setAccounts((prev) => prev.filter((account) => account.id !== accountId));
+      } catch (error) {
+        console.error("Failed to delete bank account", error);
+        Alert.alert("Unable to delete", "Please try again in a moment.");
+      }
+    },
+    []
+  );
+
+  const confirmDeleteAccount = useCallback(
+    (account) => {
+      if (!account) {
+        return;
+      }
+      Alert.alert(
+        "Delete bank account",
+        `Are you sure you want to remove ${account.name}? This won't delete past transactions.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => handleDeleteAccount(account.id),
+          },
+        ]
+      );
+    },
+    [handleDeleteAccount]
+  );
 
   const handleTabChange = (tab) => {
     if (tab === "bankAccounts") {
@@ -148,6 +232,13 @@ export default function BankAccountsScreen({ navigation }) {
       navigation.navigate("Notebook");
     }
   };
+
+  const modalTitle = editingAccount ? "Edit bank account" : "New bank account";
+  const primaryActionLabel = submitting
+    ? "Saving..."
+    : editingAccount
+    ? "Save changes"
+    : "Save account";
 
   return (
     <SafeAreaView className="flex-1 bg-brand-surface">
@@ -175,10 +266,7 @@ export default function BankAccountsScreen({ navigation }) {
       >
         <View className="px-4 pt-4 space-y-6">
           <TouchableOpacity
-            onPress={() => {
-              setFormError("");
-              setAddAccountModalVisible(true);
-            }}
+            onPress={openCreateAccountModal}
             activeOpacity={0.9}
             className="bg-brand-sky rounded-2xl py-4 px-5 shadow-md flex-row items-center justify-center gap-3"
           >
@@ -222,10 +310,14 @@ export default function BankAccountsScreen({ navigation }) {
                       </Text>
                       <Text className="text-xs text-brand-slate-500 mt-1">{account.type}</Text>
                     </View>
-                    <View className="items-end">
+                    <View className="flex-row items-center">
                       <Text className="text-lg font-bold text-brand-sky">
                         {formatCurrency(account.balance, account.currency)}
                       </Text>
+                      <AccountActionsMenu
+                        onEdit={() => handleEditAccountPress(account)}
+                        onDelete={() => confirmDeleteAccount(account)}
+                      />
                     </View>
                   </View>
                 </View>
@@ -238,12 +330,15 @@ export default function BankAccountsScreen({ navigation }) {
         visible={isAddAccountModalVisible}
         animationType="fade"
         transparent
-        onRequestClose={() => setAddAccountModalVisible(false)}
+        onRequestClose={() => {
+          setEditingAccount(null);
+          setAddAccountModalVisible(false);
+        }}
       >
         <View className="flex-1 justify-center items-center bg-black/50 px-4">
           <View className="bg-white rounded-3xl w-full p-5">
             <Text className="text-lg font-semibold text-brand-slate-900 mb-4">
-              New bank account
+              {modalTitle}
             </Text>
             <View className="space-y-4">
               <View>
@@ -280,7 +375,7 @@ export default function BankAccountsScreen({ navigation }) {
                   onPress={() => setCurrencyPickerVisible(true)}
                   className="bg-brand-input rounded-xl px-4 py-3"
                 >
-                  <Text className="text-base">{currency.label}</Text>
+                  <Text className="text-base">{currency?.label || currency?.value || "USD"}</Text>
                 </TouchableOpacity>
               </View>
               {formError ? (
@@ -290,6 +385,7 @@ export default function BankAccountsScreen({ navigation }) {
                 <TouchableOpacity
                   onPress={() => {
                     setAddAccountModalVisible(false);
+                    setEditingAccount(null);
                     setFormError("");
                   }}
                   className="px-4 py-3 rounded-xl border border-brand-slate-200"
@@ -298,7 +394,7 @@ export default function BankAccountsScreen({ navigation }) {
                   <Text className="text-sm font-semibold text-brand-slate-600">Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={handleAddAccount}
+                  onPress={handleSaveAccount}
                   activeOpacity={0.85}
                   className={`bg-brand-sky rounded-xl px-5 py-3 items-center justify-center shadow-sm ${
                     submitting ? "opacity-70" : ""
@@ -306,7 +402,7 @@ export default function BankAccountsScreen({ navigation }) {
                   disabled={submitting}
                 >
                   <Text className="text-white text-sm font-semibold">
-                    {submitting ? "Saving..." : "Save account"}
+                    {primaryActionLabel}
                   </Text>
                 </TouchableOpacity>
               </View>

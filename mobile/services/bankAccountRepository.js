@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import {
   LOCAL_USER_ID,
@@ -9,12 +9,17 @@ import {
   addLocalBankAccount,
   getLocalBankAccounts,
   setLocalBankAccounts,
+  updateLocalBankAccount,
+  deleteLocalBankAccount,
 } from "../storage/bankAccounts";
 import { fetchRemoteTransactions } from "./transactions";
 
 const getBankAccountsCollection = (userId) => {
   return collection(db, "users", userId, "bankAccounts");
 };
+
+const getBankAccountDocRef = (userId, accountId) =>
+  doc(db, "users", userId, "bankAccounts", accountId);
 
 const AUTH_TIMEOUT = 5000;
 const NOT_AUTHENTICATED_ERROR = "auth/not-authenticated";
@@ -162,4 +167,62 @@ export const getBankAccounts = async () => {
 
   const transactions = await loadTransactionsForUser(targetUserId, Boolean(user));
   return applyBalancesToAccounts(sourceAccounts, transactions);
+};
+
+export const updateBankAccount = async (accountId, updates) => {
+  if (!accountId) {
+    throw new Error("Bank account id is required to update.");
+  }
+  const user = await waitForAuthenticatedUser();
+  const targetUserId = user?.uid || LOCAL_USER_ID;
+
+  const normalized = normalizeBankAccount({ id: accountId, ...updates });
+  const persistLocally = async (overrides = {}) =>
+    updateLocalBankAccount(targetUserId, accountId, {
+      ...normalized,
+      ...overrides,
+    });
+
+  if (!user) {
+    return persistLocally();
+  }
+
+  try {
+    await updateDoc(getBankAccountDocRef(user.uid, accountId), {
+      name: normalized.name,
+      type: normalized.type,
+      currency: normalized.currency,
+      startingBalance: normalized.startingBalance,
+      updatedAt: new Date().toISOString(),
+    });
+    return persistLocally({ id: accountId });
+  } catch (error) {
+    console.warn("Failed to update remote bank account, persisting locally", error);
+    return persistLocally();
+  }
+};
+
+export const deleteBankAccount = async (accountId) => {
+  if (!accountId) {
+    throw new Error("Bank account id is required to delete.");
+  }
+  const user = await waitForAuthenticatedUser();
+  const targetUserId = user?.uid || LOCAL_USER_ID;
+
+  const removeLocal = async () => deleteLocalBankAccount(targetUserId, accountId);
+
+  if (!user) {
+    await removeLocal();
+    return true;
+  }
+
+  try {
+    await deleteDoc(getBankAccountDocRef(user.uid, accountId));
+    await removeLocal();
+    return true;
+  } catch (error) {
+    console.warn("Failed to delete remote bank account, removing locally", error);
+    await removeLocal();
+    return false;
+  }
 };

@@ -13,7 +13,11 @@ const SectionList = styled(RNSectionList);
 const View = styled(RNView);
 const Text = styled(RNText);
 
-const TransactionsList = ({ groupedTransactions }) => {
+const TransactionsList = ({
+  groupedTransactions,
+  onEditTransaction,
+  onDeleteTransaction,
+}) => {
   if (groupedTransactions.length === 0) {
     return (
       <View className="flex-1 items-center justify-center px-4 pt-20">
@@ -34,7 +38,13 @@ const TransactionsList = ({ groupedTransactions }) => {
     <SectionList
       sections={groupedTransactions}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <TransactionRow transaction={item} />}
+      renderItem={({ item }) => (
+        <TransactionRow
+          transaction={item}
+          onEdit={onEditTransaction}
+          onDelete={onDeleteTransaction}
+        />
+      )}
       renderSectionHeader={({ section: { title, data } }) => {
         const summary = data.reduce(
           (acc, tx) => {

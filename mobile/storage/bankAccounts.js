@@ -137,3 +137,41 @@ export const addLocalBankAccount = async (userId, account) => {
 
   return normalized;
 };
+
+export const updateLocalBankAccount = async (userId, accountId, updates) => {
+  if (!accountId) {
+    return null;
+  }
+  const targetUserId = userId || DEFAULT_USER_ID;
+  const existing = await getLocalBankAccounts(targetUserId);
+  let updatedAccount = null;
+  const mapped = existing.map((account) => {
+    if (account.id !== accountId) {
+      return prepareForStorage(account);
+    }
+    const merged = {
+      ...account,
+      ...updates,
+      id: accountId,
+      updatedAt: new Date().toISOString(),
+    };
+    updatedAccount = normalizeAccount(merged);
+    return prepareForStorage(updatedAccount);
+  });
+  const all = await readAll();
+  all[targetUserId] = mapped;
+  await writeAll(all);
+  return updatedAccount;
+};
+
+export const deleteLocalBankAccount = async (userId, accountId) => {
+  const targetUserId = userId || DEFAULT_USER_ID;
+  const existing = await getLocalBankAccounts(targetUserId);
+  const filtered = existing
+    .filter((account) => account.id !== accountId)
+    .map((account) => prepareForStorage(account));
+  const all = await readAll();
+  all[targetUserId] = filtered;
+  await writeAll(all);
+  return filtered.map((account) => normalizeAccount(account));
+};

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Modal,
   View as RNView,
   Text as RNText,
@@ -19,12 +20,17 @@ import Header from "./components/Header";
 import Summary from "./components/Summary";
 import FilterBar from "./components/FilterBar";
 import TransactionsList from "./components/TransactionsList";
+import TransactionEditModal from "./components/TransactionEditModal";
 import {
   DEFAULT_CURRENCY,
   formatCurrencyValue,
   formatDateParts,
   toDate,
 } from "../../utils/formatters";
+import {
+  updateTransaction as updateTransactionRecord,
+  deleteTransaction as deleteTransactionRecord,
+} from "../../services/transactionRepository";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const View = styled(RNView);
@@ -94,6 +100,9 @@ export default function TransactionsScreen() {
   });
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [isSettingStartDate, setIsSettingStartDate] = useState(true);
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [isSavingTransaction, setSavingTransaction] = useState(false);
   const uid = auth.currentUser?.uid;
 
   const updateFilter = useCallback((key, value) => {
@@ -304,6 +313,64 @@ export default function TransactionsScreen() {
     }
   };
 
+  const openEditTransaction = useCallback((transaction) => {
+    setEditingTransaction(transaction);
+    setEditModalVisible(true);
+  }, []);
+
+  const handleUpdateTransaction = useCallback(
+    async (updates) => {
+      if (!editingTransaction) {
+        return;
+      }
+      setSavingTransaction(true);
+      try {
+        const result = await updateTransactionRecord(editingTransaction.id, updates);
+        setTransactions((prev) =>
+          prev.map((tx) =>
+            tx.id === result.transaction.id ? { ...tx, ...result.transaction } : tx
+          )
+        );
+        setEditModalVisible(false);
+        setEditingTransaction(null);
+      } catch (error) {
+        console.error("Failed to update transaction", error);
+        Alert.alert("Update failed", "Unable to save changes. Please try again.");
+      } finally {
+        setSavingTransaction(false);
+      }
+    },
+    [editingTransaction]
+  );
+
+  const handleDeleteTransaction = useCallback(async (transactionId) => {
+    try {
+      await deleteTransactionRecord(transactionId);
+      setTransactions((prev) => prev.filter((tx) => tx.id !== transactionId));
+    } catch (error) {
+      console.error("Failed to delete transaction", error);
+      Alert.alert("Delete failed", "Unable to delete this transaction right now.");
+    }
+  }, []);
+
+  const confirmDeleteTransaction = useCallback(
+    (transaction) => {
+      Alert.alert(
+        "Delete transaction",
+        "Are you sure you want to delete this transaction? This can't be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => handleDeleteTransaction(transaction.id),
+          },
+        ]
+      );
+    },
+    [handleDeleteTransaction]
+  );
+
   const summaryData = useMemo(() => {
     const data = {};
     filteredTransactions.forEach((t) => {
@@ -339,7 +406,8 @@ export default function TransactionsScreen() {
   }, [filteredTransactions]);
 
   return (
-    <SafeAreaView className="flex-1 bg-background-light">
+    <>
+      <SafeAreaView className="flex-1 bg-background-light">
       <View className="flex-1 bg-background-light relative">
         <Header onExport={handleExport} />
         <Summary summaryData={summaryData} />
@@ -351,7 +419,11 @@ export default function TransactionsScreen() {
           handleClearFilters={handleClearFilters}
           showDatePicker={showDatePicker}
         />
-        <TransactionsList groupedTransactions={groupedTransactions} />
+        <TransactionsList
+          groupedTransactions={groupedTransactions}
+          onEditTransaction={openEditTransaction}
+          onDeleteTransaction={confirmDeleteTransaction}
+        />
 
         <Modal
           visible={isDatePickerVisible}
@@ -410,6 +482,17 @@ export default function TransactionsScreen() {
         </Modal>
 
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+      <TransactionEditModal
+        visible={isEditModalVisible}
+        transaction={editingTransaction}
+        onClose={() => {
+          setEditModalVisible(false);
+          setEditingTransaction(null);
+        }}
+        onSubmit={handleUpdateTransaction}
+        submitting={isSavingTransaction}
+      />
+    </>
   );
 }

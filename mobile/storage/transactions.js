@@ -120,3 +120,36 @@ export const setTransactionsForUser = async (userId, transactions) => {
   all[userId] = sortTransactions(mergeTransactionsById(normalized));
   await writeAllTransactions(all);
 };
+
+export const updateTransactionForUser = async (userId, transactionId, updates) => {
+  if (!transactionId) {
+    return null;
+  }
+  const all = await readAllTransactions();
+  const existing = normalizeTransactions(all[userId]);
+  let updatedTransaction = null;
+  const mapped = existing.map((item) => {
+    if (item.id !== transactionId) {
+      return item;
+    }
+    updatedTransaction = withSyncState({
+      ...item,
+      ...updates,
+      id: transactionId,
+      userId,
+    });
+    return updatedTransaction;
+  });
+  all[userId] = sortTransactions(mapped);
+  await writeAllTransactions(all);
+  return updatedTransaction;
+};
+
+export const deleteTransactionForUser = async (userId, transactionId) => {
+  const all = await readAllTransactions();
+  const existing = normalizeTransactions(all[userId]);
+  const filtered = existing.filter((item) => item.id !== transactionId);
+  all[userId] = sortTransactions(filtered);
+  await writeAllTransactions(all);
+  return filtered;
+};

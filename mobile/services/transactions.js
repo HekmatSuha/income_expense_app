@@ -8,6 +8,8 @@ import {
   query,
   setDoc,
   doc,
+  updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -74,6 +76,9 @@ const getUserDocRef = (userId) => doc(db, "users", ensureUserId(userId));
 
 const getUserTransactionsCollection = (userId) =>
   collection(getUserDocRef(userId), TRANSACTIONS_COLLECTION);
+
+const getTransactionDocRef = (userId, transactionId) =>
+  doc(getUserTransactionsCollection(userId), transactionId);
 
 const buildTransactionsQuery = (userId) =>
   query(getUserTransactionsCollection(userId), orderBy("createdAt", "desc"));
@@ -152,4 +157,25 @@ export const subscribeToRemoteTransactions = (userId, { onData, onError } = {}) 
 export const fetchRemoteTransactions = async (userId) => {
   const snapshot = await getDocs(buildTransactionsQuery(userId));
   return mapSnapshot(snapshot);
+};
+
+export const updateRemoteTransaction = async (userId, transactionId, updates) => {
+  if (!transactionId) {
+    throw new Error("A transactionId is required to update a transaction.");
+  }
+  const payload = buildBaseTransaction(updates);
+  await ensureUserDocument(userId);
+  await updateDoc(getTransactionDocRef(userId, transactionId), payload);
+  return {
+    id: transactionId,
+    ...payload,
+  };
+};
+
+export const deleteRemoteTransaction = async (userId, transactionId) => {
+  if (!transactionId) {
+    throw new Error("A transactionId is required to delete a transaction.");
+  }
+  await ensureUserDocument(userId);
+  await deleteDoc(getTransactionDocRef(userId, transactionId));
 };
