@@ -723,7 +723,7 @@ export default function HomeScreen({ navigation }) {
               )}
             </View>
             <View className="border-t border-gray-200 px-4 py-3 items-end">
-              <TouchableOpacity onPress={() => navigation.navigate("AddTransaction")}>
+              <TouchableOpacity onPress={() => navigation.navigate("Transactions")}>
                 <Text className="text-primary text-sm font-semibold">{t("home.more")} →</Text>
               </TouchableOpacity>
             </View>
