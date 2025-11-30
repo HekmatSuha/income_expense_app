@@ -13,36 +13,13 @@ import {
   FlatList,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { getLocales } from "expo-localization";
 import { languages } from "../constants/languages";
-
-const SECTIONS = [
-  {
-    title: "Account",
-    items: [
-      { key: "profile", icon: "person-outline", label: "My Profile" },
-      { key: "settings", icon: "settings", label: "Settings" },
-    ],
-  },
-  {
-    title: "Security & Privacy",
-    items: [
-      { key: "security", icon: "security", label: "Security" },
-      { key: "notifications", icon: "notifications-none", label: "Notifications" },
-    ],
-  },
-  {
-    title: "Support",
-    items: [
-      { key: "support", icon: "help-outline", label: "Help & Support" },
-      { key: "feedback", icon: "feedback", label: "Send Feedback" },
-    ],
-  },
-];
+import { useLanguage } from "../context/LanguageContext";
 
 const LanguagePickerModal = ({ visible, onClose, onSelect, currentLanguage }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const inputRef = useRef(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (visible) {
@@ -71,7 +48,7 @@ const LanguagePickerModal = ({ visible, onClose, onSelect, currentLanguage }) =>
       <View style={styles.modalOverlay}>
         <View style={styles.pickerContainer}>
           <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>Select Language</Text>
+            <Text style={styles.pickerTitle}>{t("home.selectLanguage")}</Text>
             <TouchableOpacity onPress={onClose} style={styles.pickerCloseButton}>
               <MaterialIcons name="close" size={24} color="#1e293b" />
             </TouchableOpacity>
@@ -154,29 +131,46 @@ const NavbarDrawer = ({
   onClose,
   onItemPress,
   user,
-  language,
-  onLanguageChange,
 }) => {
+  const { locale, changeLanguage, t } = useLanguage();
+  
   const drawerWidth = useMemo(() => {
     const { width } = Dimensions.get("window");
     return Math.min(width * 0.82, 320);
   }, []);
 
+  const sections = useMemo(() => [
+    {
+      title: t("drawer.account"),
+      items: [
+        { key: "profile", icon: "person-outline", label: t("drawer.myProfile") },
+        { key: "settings", icon: "settings", label: t("drawer.settings") },
+      ],
+    },
+    {
+      title: t("drawer.securityPrivacy"),
+      items: [
+        { key: "security", icon: "security", label: t("drawer.security") },
+        { key: "notifications", icon: "notifications-none", label: t("drawer.notifications") },
+      ],
+    },
+    {
+      title: t("drawer.support"),
+      items: [
+        { key: "support", icon: "help-outline", label: t("drawer.helpSupport") },
+        { key: "feedback", icon: "feedback", label: t("drawer.sendFeedback") },
+      ],
+    },
+  ], [t]);
+
   const animation = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(visible);
   const [pickerVisible, setPickerVisible] = useState(false);
 
-  // Determine the active language (prop or system default)
-  const activeLanguageCode = useMemo(() => {
-    if (language) return language;
-    const locales = getLocales();
-    return locales && locales.length > 0 ? locales[0].languageCode : "en";
-  }, [language]);
-
   const activeLanguageLabel = useMemo(() => {
-    const lang = languages.find((l) => l.code === activeLanguageCode);
-    return lang ? lang.label : activeLanguageCode.toUpperCase();
-  }, [activeLanguageCode]);
+    const lang = languages.find((l) => l.code === locale);
+    return lang ? lang.label : locale.toUpperCase();
+  }, [locale]);
 
   useEffect(() => {
     if (visible) {
@@ -203,6 +197,11 @@ const NavbarDrawer = ({
     }
   };
 
+  const handleLanguageSelect = (code) => {
+    changeLanguage(code);
+    // We don't close the drawer immediately so the user sees the change
+  };
+
   if (!shouldRender) {
     return null;
   }
@@ -216,8 +215,8 @@ const NavbarDrawer = ({
     outputRange: [0, 0.55],
   });
 
-  const displayName = user?.displayName || "Guest";
-  const email = user?.email || "Not signed in";
+  const displayName = user?.displayName || t("drawer.guest");
+  const email = user?.email || t("drawer.notSignedIn");
 
   return (
     <>
@@ -259,7 +258,7 @@ const NavbarDrawer = ({
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
             >
-              {SECTIONS.map((section) => (
+              {sections.map((section) => (
                 <View key={section.title} style={styles.section}>
                   <Text style={styles.sectionTitle}>{section.title}</Text>
                   {section.items.map((item) => (
@@ -291,7 +290,7 @@ const NavbarDrawer = ({
               ))}
 
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Language</Text>
+                <Text style={styles.sectionTitle}>{t("drawer.language")}</Text>
                 <TouchableOpacity
                   style={styles.languageSelectorRow}
                   activeOpacity={0.8}
@@ -301,7 +300,7 @@ const NavbarDrawer = ({
                     <MaterialIcons name="language" size={20} color="#0288D1" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.rowLabel}>App Language</Text>
+                    <Text style={styles.rowLabel}>{t("drawer.appLanguage")}</Text>
                     <Text style={styles.languageSubLabel}>
                       {activeLanguageLabel}
                     </Text>
@@ -324,9 +323,9 @@ const NavbarDrawer = ({
               }}
             >
               <MaterialIcons name="logout" size={20} color="#ef4444" />
-              <Text style={styles.footerButtonLabel}>Sign Out</Text>
+              <Text style={styles.footerButtonLabel}>{t("drawer.signOut")}</Text>
             </TouchableOpacity>
-            <Text style={styles.versionLabel}>Income Expense · v1.0.0</Text>
+            <Text style={styles.versionLabel}>{t("drawer.version")}</Text>
           </Animated.View>
         </View>
       </Modal>
@@ -334,8 +333,8 @@ const NavbarDrawer = ({
       <LanguagePickerModal
         visible={pickerVisible}
         onClose={() => setPickerVisible(false)}
-        onSelect={(code) => onLanguageChange?.(code)}
-        currentLanguage={activeLanguageCode}
+        onSelect={handleLanguageSelect}
+        currentLanguage={locale}
       />
     </>
   );

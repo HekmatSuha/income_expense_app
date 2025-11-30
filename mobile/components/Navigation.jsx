@@ -5,22 +5,25 @@ import {
   TouchableOpacity as RNTouchableOpacity,
 } from "react-native";
 import { styled } from "../packages/nativewind";
+import { useLanguage } from "../context/LanguageContext";
 
 const View = styled(RNView);
 const Text = styled(RNText);
 const TouchableOpacity = styled(RNTouchableOpacity);
 
-const TABS = [
-  { key: "home", label: "Home" },
-  { key: "bankAccounts", label: "Bank Accounts" },
-  { key: "notebook", label: "Notebook" },
-];
-
 export default function Navigation({ activeTab, onTabChange }) {
+  const { t } = useLanguage();
+  
+  const tabs = [
+    { key: "home", label: t("navigation.home") },
+    { key: "bankAccounts", label: t("navigation.bankAccounts") },
+    { key: "notebook", label: t("navigation.notebook") },
+  ];
+
   return (
     <View className="bg-white border-b border-gray-200">
       <View className="flex-row items-center justify-around px-4 py-3">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = tab.key === activeTab;
           return (
             <TouchableOpacity

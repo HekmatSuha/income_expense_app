@@ -27,6 +27,7 @@ import Navigation from "../components/Navigation";
 import NavbarDrawer from "../components/NavbarDrawer";
 import { currencies } from "../constants/currencies";
 import { getBudgetForUser, setBudgetForUser } from "../storage/budget";
+import { useLanguage } from "../context/LanguageContext";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -37,25 +38,25 @@ const TextInput = styled(RNTextInput);
 
 const quickActions = [
   {
-    label: "Add Income",
+    key: "addIncome",
     icon: "add-circle-outline",
     colorClass: "bg-income",
     route: "AddIncome",
   },
   {
-    label: "Add Expense",
+    key: "addExpense",
     icon: "remove-circle-outline",
     colorClass: "bg-expense",
     route: "AddExpense",
   },
   {
-    label: "Transfer",
+    key: "transfer",
     icon: "swap-horiz",
     colorClass: "bg-transfer",
     route: "Transfer",
   },
   {
-    label: "Transactions",
+    key: "transactions",
     icon: "list-alt",
     colorClass: "bg-transactions",
     route: "Transactions",
@@ -200,12 +201,12 @@ export default function HomeScreen({ navigation }) {
   const [monthlyBudget, setMonthlyBudget] = useState(null);
   const [isBudgetModalVisible, setBudgetModalVisible] = useState(false);
   const [budgetAmountInput, setBudgetAmountInput] = useState("");
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
   const [isNavbarVisible, setNavbarVisible] = useState(false);
   const [budgetCurrencyInput, setBudgetCurrencyInput] = useState(DEFAULT_CURRENCY);
   const [budgetError, setBudgetError] = useState("");
   const [isCurrencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const unsubscribeRef = useRef(null);
+  const { t } = useLanguage();
 
   const loadLocalTransactions = useCallback(async () => {
     try {
@@ -407,11 +408,11 @@ export default function HomeScreen({ navigation }) {
       budgetAmount: monthlyBudget.amount,
       budgetCurrency: monthlyBudget.currency,
       spent,
-      statusLabel: remaining >= 0 ? "Remaining" : "Exceeded by",
+      statusLabel: remaining >= 0 ? t("home.remaining") : t("home.exceededBy"),
       statusAmount: Math.abs(remaining),
       statusClass: remaining >= 0 ? "text-income" : "text-expense",
     };
-  }, [monthlyBudget, currentMonthExpenseMap]);
+  }, [monthlyBudget, currentMonthExpenseMap, t]);
 
   const recentTransactions = useMemo(() => {
     return [...transactions]
@@ -457,7 +458,7 @@ export default function HomeScreen({ navigation }) {
       (budgetCurrencyInput || DEFAULT_CURRENCY).trim().toUpperCase() || DEFAULT_CURRENCY;
     const numericAmount = Number(budgetAmountInput.replace(/,/g, ""));
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      setBudgetError("Enter a positive budget amount.");
+      setBudgetError(t("alerts.positiveBudget"));
       return;
     }
     const userId = auth.currentUser?.uid || LOCAL_USER_ID;
@@ -472,7 +473,7 @@ export default function HomeScreen({ navigation }) {
       console.warn("Failed to save monthly budget", error);
     }
     setBudgetModalVisible(false);
-  }, [budgetAmountInput, budgetCurrencyInput]);
+  }, [budgetAmountInput, budgetCurrencyInput, t]);
 
   const handleTabChange = useCallback(
     (tab) => {
@@ -500,35 +501,35 @@ export default function HomeScreen({ navigation }) {
         break;
       case "settings":
         Alert.alert(
-          "User Settings",
-          "Navigate to your profile to update personal details and app preferences."
+          t("alerts.userSettings"),
+          t("alerts.userSettingsBody")
         );
         break;
       case "security":
         Alert.alert(
-          "Security & Privacy",
-          "Biometric login, passcodes, and other security controls live here."
+          t("alerts.securityPrivacy"),
+          t("alerts.securityPrivacyBody")
         );
         break;
       case "notifications":
         Alert.alert(
-          "Notifications",
-          "Configure push and email alerts from the notifications panel."
+          t("alerts.notifications"),
+          t("alerts.notificationsBody")
         );
         break;
       case "support":
         Alert.alert(
-          "Help & Support",
-          "Reach support@incomeexpense.app or browse FAQs from the help center."
+          t("alerts.helpSupport"),
+          t("alerts.helpSupportBody")
         );
         break;
       case "theme":
-        Alert.alert("Appearance", "Theme customization is coming soon!");
+        Alert.alert(t("alerts.appearance"), t("alerts.appearanceBody"));
         break;
       case "feedback":
         Alert.alert(
-          "Feedback",
-          "We'd love to hear your ideas. Send feedback from the help center."
+          t("alerts.feedback"),
+          t("alerts.feedbackBody")
         );
         break;
       case "logout":
@@ -543,18 +544,13 @@ export default function HomeScreen({ navigation }) {
           });
         } catch (error) {
           console.error("Sign out failed", error);
-          Alert.alert("Error", "Failed to sign out. Please try again.");
+          Alert.alert(t("alerts.error"), t("alerts.signOutFailed"));
         }
         break;
       default:
         break;
     }
-  }, [navigation]);
-
-  const handleLanguageChange = useCallback((langCode) => {
-    setSelectedLanguage(langCode);
-    setNavbarVisible(false);
-  }, []);
+  }, [navigation, t]);
 
   return (
     <SafeAreaView className="flex-1 bg-background-light">
@@ -568,7 +564,7 @@ export default function HomeScreen({ navigation }) {
             <MaterialIcons name="menu" size={26} color="#FFFFFF" />
           </TouchableOpacity>
           <View className="items-center">
-            <Text className="text-white text-xl font-bold">Income Expense</Text>
+            <Text className="text-white text-xl font-bold">{t("appName")}</Text>
             <View className="flex-row items-center mt-1">
               <Text className="text-white text-sm font-medium">October 2025</Text>
               <MaterialIcons name="expand-more" size={18} color="#FFFFFF" />
@@ -591,7 +587,7 @@ export default function HomeScreen({ navigation }) {
           <View className="flex-row flex-wrap justify-between">
             {quickActions.map((action) => (
               <TouchableOpacity
-                key={action.label}
+                key={action.key}
                 className={`${action.colorClass} rounded-2xl px-4 py-4 items-center justify-center shadow-md`}
                 activeOpacity={0.85}
                 style={{ width: "48%", marginBottom: 16 }}
@@ -599,7 +595,7 @@ export default function HomeScreen({ navigation }) {
               >
                 <MaterialIcons name={action.icon} size={32} color="#FFFFFF" />
                 <Text className="text-white font-semibold text-sm mt-2 text-center">
-                  {action.label}
+                  {t(`quickActions.${action.key}`)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -607,11 +603,11 @@ export default function HomeScreen({ navigation }) {
 
           <View className="bg-card-light rounded-2xl shadow-md p-4">
             <Text className="text-center text-sm font-semibold text-text-secondary-light">
-              {`Today · ${todaySummary.todayLabel || ""}`}
+              {`${t("home.today")} · ${todaySummary.todayLabel || ""}`}
             </Text>
             <View className="flex-row justify-between border-b border-gray-200 mt-4 pb-3">
               <View className="items-center flex-1">
-                <Text className="text-sm text-text-secondary-light">Income</Text>
+                <Text className="text-sm text-text-secondary-light">{t("home.income")}</Text>
                 <View className="mt-1 gap-1 items-center">
                   {todayIncomeEntries.map((entry) => (
                     <Text
@@ -626,7 +622,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
               </View>
               <View className="items-center flex-1">
-                <Text className="text-sm text-text-secondary-light">Expense</Text>
+                <Text className="text-sm text-text-secondary-light">{t("home.expense")}</Text>
                 <View className="mt-1 gap-1 items-center">
                   {todayExpenseEntries.map((entry) => (
                     <Text
@@ -641,7 +637,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
               </View>
               <View className="items-center flex-1">
-                <Text className="text-sm text-text-secondary-light">Balance</Text>
+                <Text className="text-sm text-text-secondary-light">{t("home.balance")}</Text>
                 <View className="mt-1 gap-1 items-center">
                   {todayNetEntries.map((entry) => (
                     <Text
@@ -657,7 +653,7 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
             <View className="flex-row justify-between items-center mt-3">
-              <Text className="text-sm text-text-secondary-light">Previous Balance</Text>
+              <Text className="text-sm text-text-secondary-light">{t("home.previousBalance")}</Text>
               <View className="items-end">
                 {previousBalanceEntries.map((entry) => (
                   <Text
@@ -672,7 +668,7 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
             <View className="flex-row justify-between items-center mt-2">
-              <Text className="text-sm font-bold text-text-secondary-light">Total Balance</Text>
+              <Text className="text-sm font-bold text-text-secondary-light">{t("home.totalBalance")}</Text>
               <View className="items-end">
                 {totalBalanceEntries.map((entry) => (
                   <Text
@@ -691,11 +687,11 @@ export default function HomeScreen({ navigation }) {
           <View className="bg-card-light rounded-2xl shadow-md mt-6">
             <View className="p-4">
               <Text className="text-lg font-bold text-text-light mb-4">
-                Recent Transactions
+                {t("home.recentTransactions")}
               </Text>
               {recentTransactions.length === 0 ? (
                 <Text className="text-sm text-text-secondary-light">
-                  No recent transactions yet.
+                  {t("home.noTransactions")}
                 </Text>
               ) : (
                 recentTransactions.map((transaction) => (
@@ -728,17 +724,16 @@ export default function HomeScreen({ navigation }) {
             </View>
             <View className="border-t border-gray-200 px-4 py-3 items-end">
               <TouchableOpacity onPress={() => navigation.navigate("AddTransaction")}>
-                <Text className="text-primary text-sm font-semibold">More →</Text>
+                <Text className="text-primary text-sm font-semibold">{t("home.more")} →</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View className="bg-card-light rounded-2xl shadow-md p-4 mt-6">
-            <Text className="text-lg font-bold text-text-light mb-4">Payment Methods</Text>
+            <Text className="text-lg font-bold text-text-light mb-4">{t("home.paymentMethods")}</Text>
             {paymentMethodCurrencyTotals.length === 0 ? (
               <Text className="text-sm text-text-secondary-light">
-                No income has been recorded yet. Once money comes in, we'll summarize the total
-                received via each payment method and currency.
+                {t("home.noPaymentMethods")}
               </Text>
             ) : (
               paymentMethodCurrencyTotals.map((item) => (
@@ -762,17 +757,17 @@ export default function HomeScreen({ navigation }) {
             onPress={openBudgetModal}
             className="bg-card-light rounded-2xl shadow-md p-4 mt-6"
           >
-            <Text className="text-lg font-bold text-text-light mb-4">Monthly Budget</Text>
+            <Text className="text-lg font-bold text-text-light mb-4">{t("home.monthlyBudget")}</Text>
             {budgetSummary.hasBudget ? (
               <>
                 <View className="flex-row justify-between">
-                  <Text className="text-sm text-text-secondary-light">Budget</Text>
+                  <Text className="text-sm text-text-secondary-light">{t("home.budget")}</Text>
                   <Text className="text-sm font-semibold text-text-light">
                     {formatCurrency(budgetSummary.budgetAmount, budgetSummary.budgetCurrency)}
                   </Text>
                 </View>
                 <View className="flex-row justify-between mt-2">
-                  <Text className="text-sm text-text-secondary-light">Spent this month</Text>
+                  <Text className="text-sm text-text-secondary-light">{t("home.spentThisMonth")}</Text>
                   <Text className="text-sm font-semibold text-expense">
                     {formatCurrency(budgetSummary.spent, budgetSummary.budgetCurrency)}
                   </Text>
@@ -788,8 +783,7 @@ export default function HomeScreen({ navigation }) {
               </>
             ) : (
               <Text className="text-sm text-text-secondary-light">
-                Set a monthly budget target by tapping this card. We'll track how much you've spent
-                in the selected currency and highlight any excess.
+                {t("home.noBudgetSet")}
               </Text>
             )}
           </TouchableOpacity>
@@ -804,11 +798,11 @@ export default function HomeScreen({ navigation }) {
         <View className="flex-1 bg-black/50 justify-center items-center px-4">
           <View className="bg-white rounded-3xl w-full p-5">
             <Text className="text-lg font-semibold text-text-light mb-4">
-              Set Monthly Budget
+              {t("home.setBudget")}
             </Text>
             <View className="space-y-4">
               <View>
-                <Text className="text-sm text-text-secondary-light mb-1">Budget amount</Text>
+                <Text className="text-sm text-text-secondary-light mb-1">{t("home.budgetAmount")}</Text>
                 <TextInput
                   value={budgetAmountInput}
                   onChangeText={(text) => setBudgetAmountInput(text.replace(/[^0-9.]/g, ""))}
@@ -818,7 +812,7 @@ export default function HomeScreen({ navigation }) {
                 />
               </View>
               <View>
-                <Text className="text-sm text-text-secondary-light mb-1">Currency</Text>
+                <Text className="text-sm text-text-secondary-light mb-1">{t("home.currency")}</Text>
                 <TouchableOpacity
                   onPress={() => setCurrencyPickerVisible(true)}
                   className="border border-gray-200 rounded-2xl px-4 py-3"
@@ -839,13 +833,13 @@ export default function HomeScreen({ navigation }) {
                   }}
                   className="px-4 py-3 rounded-2xl border border-gray-200"
                 >
-                  <Text className="text-sm font-semibold text-text-secondary-light">Cancel</Text>
+                  <Text className="text-sm font-semibold text-text-secondary-light">{t("home.cancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleSaveBudget}
                   className="px-5 py-3 rounded-2xl bg-primary"
                 >
-                  <Text className="text-sm font-semibold text-white">Save</Text>
+                  <Text className="text-sm font-semibold text-white">{t("home.save")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -861,9 +855,9 @@ export default function HomeScreen({ navigation }) {
         <View className="flex-1 bg-black/50 justify-center items-center px-4">
           <View className="bg-white rounded-3xl w-full max-h-[70%]">
             <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-100">
-              <Text className="text-base font-semibold text-text-light">Select currency</Text>
+              <Text className="text-base font-semibold text-text-light">{t("home.selectCurrency")}</Text>
               <TouchableOpacity onPress={() => setCurrencyPickerVisible(false)}>
-                <Text className="text-primary font-semibold">Close</Text>
+                <Text className="text-primary font-semibold">{t("home.close")}</Text>
               </TouchableOpacity>
             </View>
             <RNScrollView style={{ maxHeight: 360 }}>
@@ -887,8 +881,6 @@ export default function HomeScreen({ navigation }) {
       <NavbarDrawer
         visible={isNavbarVisible}
         onClose={() => setNavbarVisible(false)}
-        language={selectedLanguage}
-        onLanguageChange={handleLanguageChange}
         user={auth.currentUser}
         onItemPress={handleDrawerItemPress}
       />
