@@ -11,6 +11,7 @@ import AddExpenseScreen from "./screens/AddExpenseScreen";
 import TransactionsScreen from "./screens/Transactions";
 import TransferScreen from "./screens/TransferScreen";
 import AddIncomeScreen from "./screens/AddIncomeScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 
@@ -34,6 +35,7 @@ export default function App() {
           <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
           <Stack.Screen name="AddIncome" component={AddIncomeScreen} />
           <Stack.Screen name="Transfer" component={TransferScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </ErrorBoundary>

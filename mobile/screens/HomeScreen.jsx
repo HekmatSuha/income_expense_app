@@ -495,6 +495,9 @@ export default function HomeScreen({ navigation }) {
   const handleDrawerItemPress = useCallback((itemKey) => {
     setNavbarVisible(false);
     switch (itemKey) {
+      case "profile":
+        navigation.navigate("Profile");
+        break;
       case "settings":
         Alert.alert(
           "User Settings",
