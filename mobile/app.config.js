@@ -34,4 +34,7 @@ export default ({ config }) => ({
     package: "com.hekmatsuha.incomeexpense",
     versionCode: 1,
   },
+  plugins: [
+    "expo-localization"
+  ],
 });
