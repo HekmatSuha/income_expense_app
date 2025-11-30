@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import i18n from '../services/i18n';
-import { getLocales } from "expo-localization";
+import i18n, { resolveLocale } from '../services/i18n';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const LanguageContext = createContext();
@@ -8,7 +7,7 @@ const LanguageContext = createContext();
 const LANGUAGE_STORAGE_KEY = 'user_language';
 
 export const LanguageProvider = ({ children }) => {
-  const [locale, setLocale] = useState(i18n.locale);
+  const [locale, setLocale] = useState(resolveLocale());
 
   useEffect(() => {
     const loadLanguage = async () => {
@@ -19,10 +18,9 @@ export const LanguageProvider = ({ children }) => {
           setLocale(storedLanguage);
         } else {
            // Fallback to device locale if not set
-           const deviceLocales = getLocales();
-           const deviceLanguage = deviceLocales[0]?.languageCode || 'en';
-           i18n.locale = deviceLanguage;
-           setLocale(deviceLanguage);
+           const deviceLocale = resolveLocale();
+           i18n.locale = deviceLocale;
+           setLocale(deviceLocale);
         }
       } catch (error) {
         console.log("Error loading language", error);

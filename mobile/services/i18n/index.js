@@ -1,7 +1,7 @@
 import { I18n } from "i18n-js";
-import { getLocales } from "expo-localization";
+import { findBestAvailableLanguage, getLocales } from "expo-localization";
 
-const translations = {
+export const translations = {
   en: {
     welcome: "Welcome",
     appName: "Income Expense",
@@ -14,7 +14,7 @@ const translations = {
     navigation: {
       home: "Home",
       bankAccounts: "Bank Accounts",
-      notebook: "Notebook"
+      notebook: "Notebook",
     },
     home: {
       today: "Today",
@@ -26,13 +26,15 @@ const translations = {
       recentTransactions: "Recent Transactions",
       noTransactions: "No recent transactions yet.",
       paymentMethods: "Payment Methods",
-      noPaymentMethods: "No income has been recorded yet. Once money comes in, we'll summarize the total received via each payment method and currency.",
+      noPaymentMethods:
+        "No income has been recorded yet. Once money comes in, we'll summarize the total received via each payment method and currency.",
       monthlyBudget: "Monthly Budget",
       budget: "Budget",
       spentThisMonth: "Spent this month",
       remaining: "Remaining",
       exceededBy: "Exceeded by",
-      noBudgetSet: "Set a monthly budget target by tapping this card. We'll track how much you've spent in the selected currency and highlight any excess.",
+      noBudgetSet:
+        "Set a monthly budget target by tapping this card. We'll track how much you've spent in the selected currency and highlight any excess.",
       setBudget: "Set Monthly Budget",
       budgetAmount: "Budget amount",
       currency: "Currency",
@@ -41,7 +43,7 @@ const translations = {
       selectCurrency: "Select currency",
       selectLanguage: "Select Language",
       close: "Close",
-      more: "More"
+      more: "More",
     },
     drawer: {
       account: "Account",
@@ -56,264 +58,306 @@ const translations = {
       language: "Language",
       appLanguage: "App Language",
       signOut: "Sign Out",
-      version: "Income Expense · v1.0.0",
+      version: "Income Expense App v1.0.0",
       guest: "Guest",
-      notSignedIn: "Not signed in"
+      notSignedIn: "Not signed in",
     },
     alerts: {
       userSettings: "User Settings",
-      userSettingsBody: "Navigate to your profile to update personal details and app preferences.",
+      userSettingsBody:
+        "Navigate to your profile to update personal details and app preferences.",
       securityPrivacy: "Security & Privacy",
-      securityPrivacyBody: "Biometric login, passcodes, and other security controls live here.",
+      securityPrivacyBody:
+        "Biometric login, passcodes, and other security controls live here.",
       notifications: "Notifications",
-      notificationsBody: "Configure push and email alerts from the notifications panel.",
+      notificationsBody:
+        "Configure push and email alerts from the notifications panel.",
       helpSupport: "Help & Support",
-      helpSupportBody: "Reach support@incomeexpense.app or browse FAQs from the help center.",
+      helpSupportBody:
+        "Reach support@incomeexpense.app or browse FAQs from the help center.",
       appearance: "Appearance",
       appearanceBody: "Theme customization is coming soon!",
       feedback: "Feedback",
-      feedbackBody: "We'd love to hear your ideas. Send feedback from the help center.",
+      feedbackBody:
+        "We'd love to hear your ideas. Send feedback from the help center.",
       error: "Error",
       signOutFailed: "Failed to sign out. Please try again.",
-      positiveBudget: "Enter a positive budget amount."
-    }
+      positiveBudget: "Enter a positive budget amount.",
+    },
   },
-  es: {
-    welcome: "Bienvenido",
-    appName: "Ingresos Gastos",
+  tr: {
+    welcome: "Hoş geldiniz",
+    appName: "Gelir Gider",
     quickActions: {
-      addIncome: "Añadir Ingreso",
-      addExpense: "Añadir Gasto",
-      transfer: "Transferir",
-      transactions: "Transacciones",
+      addIncome: "Gelir Ekle",
+      addExpense: "Gider Ekle",
+      transfer: "Transfer",
+      transactions: "İşlemler",
     },
     navigation: {
-      home: "Inicio",
-      bankAccounts: "Cuentas Bancarias",
-      notebook: "Cuaderno"
+      home: "Ana Sayfa",
+      bankAccounts: "Banka Hesapları",
+      notebook: "Not Defteri",
     },
     home: {
-      today: "Hoy",
-      income: "Ingresos",
-      expense: "Gastos",
-      balance: "Balance",
-      previousBalance: "Balance Anterior",
-      totalBalance: "Balance Total",
-      recentTransactions: "Transacciones Recientes",
-      noTransactions: "Aún no hay transacciones recientes.",
-      paymentMethods: "Métodos de Pago",
-      noPaymentMethods: "Aún no se han registrado ingresos. Una vez que entre dinero, resumiremos el total recibido por cada método de pago y moneda.",
-      monthlyBudget: "Presupuesto Mensual",
-      budget: "Presupuesto",
-      spentThisMonth: "Gastado este mes",
-      remaining: "Restante",
-      exceededBy: "Excedido por",
-      noBudgetSet: "Establezca un objetivo de presupuesto mensual tocando esta tarjeta. Haremos un seguimiento de cuánto ha gastado en la moneda seleccionada y resaltaremos cualquier exceso.",
-      setBudget: "Establecer Presupuesto Mensual",
-      budgetAmount: "Monto del presupuesto",
-      currency: "Moneda",
-      save: "Guardar",
-      cancel: "Cancelar",
-      selectCurrency: "Seleccionar moneda",
-      selectLanguage: "Seleccionar idioma",
-      close: "Cerrar",
-      more: "Más"
+      today: "Bugün",
+      income: "Gelir",
+      expense: "Gider",
+      balance: "Bakiye",
+      previousBalance: "Önceki Bakiye",
+      totalBalance: "Toplam Bakiye",
+      recentTransactions: "Son İşlemler",
+      noTransactions: "Henüz son işlem yok.",
+      paymentMethods: "Ödeme Yöntemleri",
+      noPaymentMethods:
+        "Henüz gelir kaydedilmedi. Para geldiğinde her ödeme yöntemi ve para birimine göre toplamları göstereceğiz.",
+      monthlyBudget: "Aylık Bütçe",
+      budget: "Bütçe",
+      spentThisMonth: "Bu ay harcanan",
+      remaining: "Kalan",
+      exceededBy: "Aşılan tutar",
+      noBudgetSet:
+        "Bu karta dokunarak aylık bütçe hedefi belirleyin. Seçilen para biriminde harcamaları takip edip aşım varsa vurgulayacağız.",
+      setBudget: "Aylık Bütçe Belirle",
+      budgetAmount: "Bütçe tutarı",
+      currency: "Para birimi",
+      save: "Kaydet",
+      cancel: "İptal",
+      selectCurrency: "Para birimi seç",
+      selectLanguage: "Dil seç",
+      close: "Kapat",
+      more: "Daha fazla",
     },
     drawer: {
-      account: "Cuenta",
-      myProfile: "Mi Perfil",
-      settings: "Configuración",
-      securityPrivacy: "Seguridad y Privacidad",
-      security: "Seguridad",
-      notifications: "Notificaciones",
-      support: "Soporte",
-      helpSupport: "Ayuda y Soporte",
-      sendFeedback: "Enviar Comentarios",
-      language: "Idioma",
-      appLanguage: "Idioma de la Aplicación",
-      signOut: "Cerrar Sesión",
-      version: "Ingresos Gastos · v1.0.0",
-      guest: "Invitado",
-      notSignedIn: "No ha iniciado sesión"
+      account: "Hesap",
+      myProfile: "Profilim",
+      settings: "Ayarlar",
+      securityPrivacy: "Güvenlik ve Gizlilik",
+      security: "Güvenlik",
+      notifications: "Bildirimler",
+      support: "Destek",
+      helpSupport: "Yardım ve Destek",
+      sendFeedback: "Geri Bildirim Gönder",
+      language: "Dil",
+      appLanguage: "Uygulama Dili",
+      signOut: "Çıkış Yap",
+      version: "Gelir Gider Uyg. v1.0.0",
+      guest: "Misafir",
+      notSignedIn: "Giriş yapılmadı",
     },
     alerts: {
-      userSettings: "Configuración de Usuario",
-      userSettingsBody: "Vaya a su perfil para actualizar detalles personales y preferencias de la aplicación.",
-      securityPrivacy: "Seguridad y Privacidad",
-      securityPrivacyBody: "Inicio de sesión biométrico, códigos de acceso y otros controles de seguridad viven aquí.",
-      notifications: "Notificaciones",
-      notificationsBody: "Configure alertas push y de correo electrónico desde el panel de notificaciones.",
-      helpSupport: "Ayuda y Soporte",
-      helpSupportBody: "Contacte a support@incomeexpense.app o explore las preguntas frecuentes desde el centro de ayuda.",
-      appearance: "Apariencia",
-      appearanceBody: "¡La personalización del tema llegará pronto!",
-      feedback: "Comentarios",
-      feedbackBody: "Nos encantaría escuchar sus ideas. Envíe comentarios desde el centro de ayuda.",
-      error: "Error",
-      signOutFailed: "Error al cerrar sesión. Inténtelo de nuevo.",
-      positiveBudget: "Ingrese un monto de presupuesto positivo."
-    }
+      userSettings: "Kullanıcı Ayarları",
+      userSettingsBody:
+        "Kişisel bilgileri ve uygulama tercihlerini güncellemek için profilinize gidin.",
+      securityPrivacy: "Güvenlik ve Gizlilik",
+      securityPrivacyBody:
+        "Biyometrik giriş, şifreler ve diğer güvenlik kontrolleri burada.",
+      notifications: "Bildirimler",
+      notificationsBody:
+        "Bildirim panelinden push ve e-posta uyarılarını yapılandırın.",
+      helpSupport: "Yardım ve Destek",
+      helpSupportBody:
+        "support@incomeexpense.app adresinden bize ulaşın veya sık sorulan sorulara göz atın.",
+      appearance: "Görünüm",
+      appearanceBody: "Tema özelleştirmesi yakında geliyor!",
+      feedback: "Geri Bildirim",
+      feedbackBody:
+        "Fikirlerinizi duymak isteriz. Yardım merkezinden geri bildirim gönderin.",
+      error: "Hata",
+      signOutFailed: "Çıkış yapılamadı. Lütfen tekrar deneyin.",
+      positiveBudget: "Pozitif bir bütçe tutarı girin.",
+    },
   },
-   fr: {
-    welcome: "Bienvenue",
-    appName: "Revenus Dépenses",
+  ru: {
+    welcome: "Добро пожаловать",
+    appName: "Доходы и расходы",
     quickActions: {
-      addIncome: "Ajouter Revenu",
-      addExpense: "Ajouter Dépense",
-      transfer: "Virement",
-      transactions: "Transactions",
+      addIncome: "Добавить доход",
+      addExpense: "Добавить расход",
+      transfer: "Перевод",
+      transactions: "Транзакции",
     },
     navigation: {
-      home: "Accueil",
-      bankAccounts: "Comptes Bancaires",
-      notebook: "Carnet"
+      home: "Главная",
+      bankAccounts: "Банковские счета",
+      notebook: "Блокнот",
     },
     home: {
-      today: "Aujourd'hui",
-      income: "Revenus",
-      expense: "Dépenses",
-      balance: "Solde",
-      previousBalance: "Solde Précédent",
-      totalBalance: "Solde Total",
-      recentTransactions: "Transactions Récentes",
-      noTransactions: "Aucune transaction récente pour le moment.",
-      paymentMethods: "Méthodes de Paiement",
-      noPaymentMethods: "Aucun revenu enregistré pour le moment. Une fois l'argent reçu, nous résumerons le total reçu par méthode de paiement et devise.",
-      monthlyBudget: "Budget Mensuel",
-      budget: "Budget",
-      spentThisMonth: "Dépensé ce mois-ci",
-      remaining: "Restant",
-      exceededBy: "Dépassé de",
-      noBudgetSet: "Fixez un objectif budgétaire mensuel en touchant cette carte. Nous suivrons vos dépenses dans la devise sélectionnée et mettrons en évidence tout excès.",
-      setBudget: "Définir Budget Mensuel",
-      budgetAmount: "Montant du budget",
-      currency: "Devise",
-      save: "Enregistrer",
-      cancel: "Annuler",
-      selectCurrency: "Sélectionner devise",
-      selectLanguage: "Choisir la langue",
-      close: "Fermer",
-      more: "Plus"
+      today: "Сегодня",
+      income: "Доход",
+      expense: "Расход",
+      balance: "Баланс",
+      previousBalance: "Предыдущий баланс",
+      totalBalance: "Общий баланс",
+      recentTransactions: "Недавние операции",
+      noTransactions: "Недавних операций пока нет.",
+      paymentMethods: "Способы оплаты",
+      noPaymentMethods:
+        "Доходы пока не добавлены. Когда появятся поступления, мы покажем суммы по каждому способу оплаты и валюте.",
+      monthlyBudget: "Месячный бюджет",
+      budget: "Бюджет",
+      spentThisMonth: "Потрачено в этом месяце",
+      remaining: "Осталось",
+      exceededBy: "Превышено на",
+      noBudgetSet:
+        "Нажмите на эту карту, чтобы задать месячный бюджет. Мы будем отслеживать траты в выбранной валюте и подсвечивать превышение.",
+      setBudget: "Задать месячный бюджет",
+      budgetAmount: "Сумма бюджета",
+      currency: "Валюта",
+      save: "Сохранить",
+      cancel: "Отмена",
+      selectCurrency: "Выберите валюту",
+      selectLanguage: "Выберите язык",
+      close: "Закрыть",
+      more: "Еще",
     },
     drawer: {
-      account: "Compte",
-      myProfile: "Mon Profil",
-      settings: "Paramètres",
-      securityPrivacy: "Sécurité & Confidentialité",
-      security: "Sécurité",
-      notifications: "Notifications",
-      support: "Support",
-      helpSupport: "Aide & Support",
-      sendFeedback: "Envoyer Commentaires",
-      language: "Langue",
-      appLanguage: "Langue de l'App",
-      signOut: "Se Déconnecter",
-      version: "Revenus Dépenses · v1.0.0",
-      guest: "Invité",
-      notSignedIn: "Non connecté"
+      account: "Аккаунт",
+      myProfile: "Мой профиль",
+      settings: "Настройки",
+      securityPrivacy: "Безопасность и конфиденциальность",
+      security: "Безопасность",
+      notifications: "Уведомления",
+      support: "Поддержка",
+      helpSupport: "Помощь и поддержка",
+      sendFeedback: "Отправить отзыв",
+      language: "Язык",
+      appLanguage: "Язык приложения",
+      signOut: "Выйти",
+      version: "Доходы и расходы v1.0.0",
+      guest: "Гость",
+      notSignedIn: "Вход не выполнен",
     },
     alerts: {
-      userSettings: "Paramètres Utilisateur",
-      userSettingsBody: "Accédez à votre profil pour mettre à jour vos informations personnelles et préférences.",
-      securityPrivacy: "Sécurité & Confidentialité",
-      securityPrivacyBody: "Connexion biométrique, codes d'accès et autres contrôles de sécurité se trouvent ici.",
-      notifications: "Notifications",
-      notificationsBody: "Configurez les alertes push et e-mail depuis le panneau de notifications.",
-      helpSupport: "Aide & Support",
-      helpSupportBody: "Contactez support@incomeexpense.app ou consultez la FAQ depuis le centre d'aide.",
-      appearance: "Apparence",
-      appearanceBody: "La personnalisation du thème arrive bientôt !",
-      feedback: "Commentaires",
-      feedbackBody: "Nous aimerions entendre vos idées. Envoyez vos commentaires depuis le centre d'aide.",
-      error: "Erreur",
-      signOutFailed: "Échec de la déconnexion. Veuillez réessayer.",
-      positiveBudget: "Entrez un montant budgétaire positif."
-    }
+      userSettings: "Настройки пользователя",
+      userSettingsBody:
+        "Откройте профиль, чтобы обновить личные данные и предпочтения приложения.",
+      securityPrivacy: "Безопасность и конфиденциальность",
+      securityPrivacyBody:
+        "Биометрия, пароли и другие настройки безопасности находятся здесь.",
+      notifications: "Уведомления",
+      notificationsBody:
+        "Настройте push и email оповещения в панели уведомлений.",
+      helpSupport: "Помощь и поддержка",
+      helpSupportBody:
+        "Пишите на support@incomeexpense.app или смотрите FAQ в центре помощи.",
+      appearance: "Внешний вид",
+      appearanceBody: "Настройка темы скоро появится!",
+      feedback: "Отзыв",
+      feedbackBody:
+        "Нам важны ваши идеи. Отправьте отзыв из центра помощи.",
+      error: "Ошибка",
+      signOutFailed: "Не удалось выйти. Попробуйте еще раз.",
+      positiveBudget: "Введите положительную сумму бюджета.",
+    },
   },
-  hi: {
-    welcome: "स्वागत है",
-    appName: "आय और व्यय",
+  kk: {
+    welcome: "Қош келдіңіз",
+    appName: "Кіріс Шығыс",
     quickActions: {
-      addIncome: "आय जोड़ें",
-      addExpense: "व्यय जोड़ें",
-      transfer: "स्थानांतरण",
-      transactions: "लेन-देन",
+      addIncome: "Кіріс қосу",
+      addExpense: "Шығыс қосу",
+      transfer: "Аудару",
+      transactions: "Транзакциялар",
     },
     navigation: {
-      home: "होम",
-      bankAccounts: "बैंक खाते",
-      notebook: "नोटबुक"
+      home: "Басты бет",
+      bankAccounts: "Банк шоттары",
+      notebook: "Жазба",
     },
     home: {
-      today: "आज",
-      income: "आय",
-      expense: "व्यय",
-      balance: "शेष राशि",
-      previousBalance: "पिछला शेष",
-      totalBalance: "कुल शेष",
-      recentTransactions: "हाल के लेन-देन",
-      noTransactions: "अभी कोई हालिया लेन-देन नहीं है।",
-      paymentMethods: "भुगतान के तरीके",
-      noPaymentMethods: "अभी तक कोई आय दर्ज नहीं की गई है। एक बार पैसे आने पर, हम प्रत्येक भुगतान विधि और मुद्रा के माध्यम से प्राप्त कुल राशि का सारांश देंगे।",
-      monthlyBudget: "मासिक बजट",
-      budget: "बजट",
-      spentThisMonth: "इस महीने खर्च किया",
-      remaining: "शेष",
-      exceededBy: "से अधिक हो गया",
-      noBudgetSet: "इस कार्ड को टैप करके मासिक बजट लक्ष्य निर्धारित करें। हम ट्रैक करेंगे कि आपने चुनी हुई मुद्रा में कितना खर्च किया है और किसी भी अधिकता को हाइलाइट करेंगे।",
-      setBudget: "मासिक बजट सेट करें",
-      budgetAmount: "बजट राशि",
-      currency: "मुद्रा",
-      save: "सहेजें",
-      cancel: "रद्द करें",
-      selectCurrency: "मुद्रा चुनें",
-      selectLanguage: "भाषा चुने",
-      close: "बंद करें",
-      more: "अधिक"
+      today: "Бүгін",
+      income: "Кіріс",
+      expense: "Шығыс",
+      balance: "Қалдық",
+      previousBalance: "Алдыңғы қалдық",
+      totalBalance: "Жалпы қалдық",
+      recentTransactions: "Соңғы транзакциялар",
+      noTransactions: "Әзірге транзакциялар жоқ.",
+      paymentMethods: "Төлем әдістері",
+      noPaymentMethods:
+        "Әзірге кіріс тіркелмеді. Ақша түскенде әр төлем әдісі мен валюта бойынша сомаларды көрсетеміз.",
+      monthlyBudget: "Айлық бюджет",
+      budget: "Бюджет",
+      spentThisMonth: "Осы айда жұмсалды",
+      remaining: "Қалды",
+      exceededBy: "Асып түсті",
+      noBudgetSet:
+        "Бұл картаны түртіп, айлық бюджет нысанасын қойыңыз. Таңдалған валютада шығындарды бақылап, артық шығынды көрсетеміз.",
+      setBudget: "Айлық бюджетті қою",
+      budgetAmount: "Бюджет сомасы",
+      currency: "Валюта",
+      save: "Сақтау",
+      cancel: "Бас тарту",
+      selectCurrency: "Валютаны таңдаңыз",
+      selectLanguage: "Тілді таңдаңыз",
+      close: "Жабу",
+      more: "Тағы",
     },
     drawer: {
-      account: "खाता",
-      myProfile: "मेरा प्रोफ़ाइल",
-      settings: "सेटिंग्स",
-      securityPrivacy: "सुरक्षा और गोपनीयता",
-      security: "सुरक्षा",
-      notifications: "सूचनाएं",
-      support: "सहयोग",
-      helpSupport: "सहायता और सहयोग",
-      sendFeedback: "प्रतिक्रिया भेजें",
-      language: "भाषा",
-      appLanguage: "ऐप भाषा",
-      signOut: "साइन आउट",
-      version: "आय और व्यय · v1.0.0",
-      guest: "अतिथि",
-      notSignedIn: "साइन इन नहीं किया है"
+      account: "Есептік жазба",
+      myProfile: "Менің профилім",
+      settings: "Баптаулар",
+      securityPrivacy: "Қауіпсіздік және құпиялылық",
+      security: "Қауіпсіздік",
+      notifications: "Хабарламалар",
+      support: "Қолдау",
+      helpSupport: "Көмек және қолдау",
+      sendFeedback: "Кері байланыс жіберу",
+      language: "Тіл",
+      appLanguage: "Қосымша тілі",
+      signOut: "Шығу",
+      version: "Кіріс Шығыс v1.0.0",
+      guest: "Қонақ",
+      notSignedIn: "Кіру жасалмаған",
     },
     alerts: {
-      userSettings: "उपयोगकर्ता सेटिंग्स",
-      userSettingsBody: "व्यक्तिगत विवरण और ऐप वरीयताओं को अपडेट करने के लिए अपनी प्रोफ़ाइल पर जाएं।",
-      securityPrivacy: "सुरक्षा और गोपनीयता",
-      securityPrivacyBody: "बायोमेट्रिक लॉगिन, पासकोड और अन्य सुरक्षा नियंत्रण यहां रहते हैं।",
-      notifications: "सूचनाएं",
-      notificationsBody: "सूचना पैनल से पुश और ईमेल अलर्ट कॉन्फ़िगर करें।",
-      helpSupport: "सहायता और सहयोग",
-      helpSupportBody: "support@incomeexpense.app पर संपर्क करें या सहायता केंद्र से अक्सर पूछे जाने वाले प्रश्नों को ब्राउज़ करें।",
-      appearance: "दिखावट",
-      appearanceBody: "थीम अनुकूलन जल्द ही आ रहा है!",
-      feedback: "प्रतिक्रिया",
-      feedbackBody: "हमें आपके विचार सुनना अच्छा लगेगा। सहायता केंद्र से प्रतिक्रिया भेजें।",
-      error: "त्रुटि",
-      signOutFailed: "साइन आउट करने में विफल। कृपया पुन: प्रयास करें।",
-      positiveBudget: "एक सकारात्मक बजट राशि दर्ज करें।"
-    }
+      userSettings: "Пайдаланушы баптаулары",
+      userSettingsBody:
+        "Профильге өтіп, жеке деректер мен қолданба қалауларын жаңартыңыз.",
+      securityPrivacy: "Қауіпсіздік және құпиялылық",
+      securityPrivacyBody:
+        "Биометрия, құпия сөздер және басқа қауіпсіздік басқармалары осы жерде.",
+      notifications: "Хабарламалар",
+      notificationsBody:
+        "Хабарлама панелінен push және email ескертулерін баптаңыз.",
+      helpSupport: "Көмек және қолдау",
+      helpSupportBody:
+        "support@incomeexpense.app мекенжайына жазыңыз немесе Жиі қойылатын сұрақтарды қараңыз.",
+      appearance: "Сыртқы түрі",
+      appearanceBody: "Тақырыпты баптау жақында қосылады!",
+      feedback: "Кері байланыс",
+      feedbackBody:
+        "Ұсыныстарыңызды қуана оқимыз. Көмек орталығынан пікір жіберіңіз.",
+      error: "Қате",
+      signOutFailed: "Шығу сәтсіз. Қайта көріңіз.",
+      positiveBudget: "Бюджетке оң сома енгізіңіз.",
+    },
+  },
+};
+
+export const supportedLocales = Object.keys(translations);
+
+// Pick the best match from the device locales and fall back to English.
+export const resolveLocale = () => {
+  const best = findBestAvailableLanguage(supportedLocales);
+  if (best?.languageTag) {
+    const normalized = best.languageTag.split("-")[0];
+    if (supportedLocales.includes(best.languageTag)) return best.languageTag;
+    if (supportedLocales.includes(normalized)) return normalized;
   }
+
+  const deviceLanguage = getLocales()[0]?.languageCode;
+  if (deviceLanguage && supportedLocales.includes(deviceLanguage)) {
+    return deviceLanguage;
+  }
+
+  return "en";
 };
 
 const i18n = new I18n(translations);
-
-// Set the locale once at the beginning of your app.
-const locales = getLocales();
-i18n.locale = locales[0] ? locales[0].languageCode : 'en';
-i18n.enableFallback = true;
 i18n.defaultLocale = "en";
+i18n.enableFallback = true;
+i18n.locale = resolveLocale();
 
 export default i18n;
