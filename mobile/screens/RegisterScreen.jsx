@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function RegisterScreen({ navigation }) {
   const [form, setForm] = useState({
@@ -22,6 +23,7 @@ export default function RegisterScreen({ navigation }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { t } = useLanguage();
 
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -31,36 +33,36 @@ export default function RegisterScreen({ navigation }) {
     setError("");
 
     if (!form.email || !form.password) {
-      setError("Email and password are required.");
+      setError(t("auth.missingEmailPassword"));
       return;
     }
     if (form.password.length < 8) {
-      setError("Password must be at least 8 characters long.");
+      setError(t("auth.passwordMinLength"));
       return;
     }
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match. Please confirm your password.");
+      setError(t("auth.passwordMismatch"));
       return;
     }
 
     try {
       setLoading(true);
       await createUserWithEmailAndPassword(auth, form.email, form.password);
-      Alert.alert("Welcome!", "Account created successfully. Please log in.", [
+      Alert.alert(t("auth.registerSuccessTitle"), t("auth.registerSuccessBody"), [
         {
-          text: "Go to Login",
+          text: t("auth.goToLogin"),
           onPress: () => navigation.replace("Login"),
         },
       ]);
     } catch (err) {
-      let message = "Unable to register. Please try again.";
+      let message = t("auth.registerFailed");
 
       if (err?.code === "auth/email-already-in-use") {
-        message = "An account with that email already exists. Try logging in instead.";
+        message = t("auth.emailInUse");
       } else if (err?.code === "auth/invalid-email") {
-        message = "That email address looks invalid. Please check and try again.";
+        message = t("auth.invalidEmail");
       } else if (err?.code === "auth/weak-password") {
-        message = "Password must be at least 8 characters long.";
+        message = t("auth.weakPassword");
       }
 
       setError(message);
@@ -77,16 +79,14 @@ export default function RegisterScreen({ navigation }) {
         behavior={Platform.select({ ios: "padding", android: undefined })}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Create account</Text>
-          <Text style={styles.subtitle}>
-            Join us to keep your income and expenses perfectly organised.
-          </Text>
+          <Text style={styles.title}>{t("auth.registerTitle")}</Text>
+          <Text style={styles.subtitle}>{t("auth.registerSubtitle")}</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign up</Text>
+          <Text style={styles.cardTitle}>{t("auth.signUpCta")}</Text>
           <TextInput
-            placeholder="Email"
+            placeholder={t("auth.email")}
             placeholderTextColor="#8A8FA6"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -95,7 +95,7 @@ export default function RegisterScreen({ navigation }) {
             onChangeText={(value) => updateField("email", value)}
           />
           <TextInput
-            placeholder="Password"
+            placeholder={t("auth.password")}
             placeholderTextColor="#8A8FA6"
             secureTextEntry
             style={styles.input}
@@ -103,7 +103,7 @@ export default function RegisterScreen({ navigation }) {
             onChangeText={(value) => updateField("password", value)}
           />
           <TextInput
-            placeholder="Confirm password"
+            placeholder={t("auth.confirmPassword")}
             placeholderTextColor="#8A8FA6"
             secureTextEntry
             style={styles.input}
@@ -119,7 +119,7 @@ export default function RegisterScreen({ navigation }) {
             disabled={loading}
           >
             <Text style={styles.primaryButtonText}>
-              {loading ? "Creating account..." : "Create account"}
+              {loading ? t("auth.registering") : t("auth.register")}
             </Text>
           </TouchableOpacity>
 
@@ -128,7 +128,7 @@ export default function RegisterScreen({ navigation }) {
             style={styles.secondaryAction}
             disabled={loading}
           >
-            <Text style={styles.secondaryActionText}>Already have an account? Log in</Text>
+            <Text style={styles.secondaryActionText}>{t("auth.haveAccount")}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

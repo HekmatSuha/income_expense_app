@@ -1,5 +1,5 @@
 import { I18n } from "i18n-js";
-import { findBestAvailableLanguage, getLocales } from "expo-localization";
+import { getLocales } from "expo-localization";
 
 export const translations = {
   en: {
@@ -84,6 +84,49 @@ export const translations = {
       signOutFailed: "Failed to sign out. Please try again.",
       positiveBudget: "Enter a positive budget amount.",
     },
+    auth: {
+      loginTitle: "Welcome back",
+      loginSubtitle: "Log in to continue monitoring your spending and savings goals.",
+      email: "Email",
+      password: "Password",
+      signIn: "Log in",
+      signingIn: "Signing in...",
+      missingInfoTitle: "Missing information",
+      missingInfoBody: "Please enter your email and password.",
+      loginFailedTitle: "Login failed",
+      loginFailedBody: "Login failed. Please check your credentials.",
+      forgotPassword: "Forgot password?",
+      needAccount: "Need an account? Sign up",
+      signUpCta: "Sign up",
+      createAccount: "Create account",
+      registerTitle: "Create account",
+      registerSubtitle: "Join us to keep your income and expenses perfectly organised.",
+      name: "Name",
+      confirmPassword: "Confirm password",
+      passwordMismatch: "Passwords do not match.",
+      passwordMinLength: "Password must be at least 8 characters long.",
+      missingEmailPassword: "Email and password are required.",
+      registerFailed: "Unable to register. Please try again.",
+      emailInUse: "An account with that email already exists. Try logging in instead.",
+      invalidEmail: "That email address looks invalid. Please check and try again.",
+      weakPassword: "Password must be at least 8 characters long.",
+      registerSuccessTitle: "Welcome!",
+      registerSuccessBody: "Account created successfully. Please log in.",
+      goToLogin: "Go to Login",
+      registering: "Creating account...",
+      register: "Create account",
+      haveAccount: "Already have an account? Log in",
+      resetTitle: "Reset password",
+      resetSubtitle: "Enter your email and we’ll send a password reset link.",
+      sendReset: "Send reset link",
+      sending: "Sending...",
+      resetSuccessTitle: "Email sent",
+      resetSuccessBody: "Check your inbox for the password reset link.",
+      resetFailTitle: "Reset failed",
+      resetFailBody: "We couldn’t send the reset email. Please try again.",
+      resetUserNotFound: "We couldn't find an account with that email address.",
+      backToLogin: "Back to Login",
+    },
   },
   tr: {
     welcome: "Hoş geldiniz",
@@ -166,6 +209,50 @@ export const translations = {
       error: "Hata",
       signOutFailed: "Çıkış yapılamadı. Lütfen tekrar deneyin.",
       positiveBudget: "Pozitif bir bütçe tutarı girin.",
+    },
+    auth: {
+      loginTitle: "Tekrar hoş geldiniz",
+      loginSubtitle:
+        "Harcamalarınızı ve birikim hedeflerinizi takip etmeye devam etmek için giriş yapın.",
+      email: "E-posta",
+      password: "Şifre",
+      signIn: "Giriş yap",
+      signingIn: "Giriş yapılıyor...",
+      missingInfoTitle: "Eksik bilgi",
+      missingInfoBody: "Lütfen e-posta ve şifrenizi girin.",
+      loginFailedTitle: "Giriş başarısız",
+      loginFailedBody: "Giriş başarısız. Bilgilerinizi kontrol edin.",
+      forgotPassword: "Şifrenizi mi unuttunuz?",
+      needAccount: "Hesabın yok mu? Kayıt ol",
+      signUpCta: "Kayıt ol",
+      createAccount: "Hesap oluştur",
+      registerTitle: "Hesap oluştur",
+      registerSubtitle: "Gelir ve giderlerini düzenli tutmak için bize katıl.",
+      name: "İsim",
+      confirmPassword: "Şifreyi doğrula",
+      passwordMismatch: "Şifreler uyuşmuyor.",
+      passwordMinLength: "Şifre en az 8 karakter olmalı.",
+      missingEmailPassword: "E-posta ve şifre zorunlu.",
+      registerFailed: "Kayıt başarısız. Lütfen tekrar deneyin.",
+      emailInUse: "Bu e-posta ile hesap zaten var. Giriş yapmayı deneyin.",
+      invalidEmail: "E-posta adresi hatalı görünüyor. Lütfen kontrol edin.",
+      weakPassword: "Şifre en az 8 karakter olmalı.",
+      registerSuccessTitle: "Hoş geldin!",
+      registerSuccessBody: "Hesap başarıyla oluşturuldu. Lütfen giriş yap.",
+      goToLogin: "Girişe git",
+      registering: "Hesap oluşturuluyor...",
+      register: "Hesap oluştur",
+      haveAccount: "Zaten hesabın var mı? Giriş yap",
+      resetTitle: "Şifre sıfırlama",
+      resetSubtitle: "E-postanı yaz, sana sıfırlama bağlantısı gönderelim.",
+      sendReset: "Bağlantı gönder",
+      sending: "Gönderiliyor...",
+      resetSuccessTitle: "E-posta gönderildi",
+      resetSuccessBody: "Şifre sıfırlama bağlantısı için gelen kutunu kontrol et.",
+      resetFailTitle: "Sıfırlama başarısız",
+      resetFailBody: "E-posta gönderilemedi. Lütfen tekrar dene.",
+      resetUserNotFound: "Bu e-posta ile hesap bulunamadı.",
+      backToLogin: "Girişe dön",
     },
   },
   ru: {
@@ -250,6 +337,50 @@ export const translations = {
       signOutFailed: "Не удалось выйти. Попробуйте еще раз.",
       positiveBudget: "Введите положительную сумму бюджета.",
     },
+    auth: {
+      loginTitle: "С возвращением",
+      loginSubtitle:
+        "Войдите, чтобы продолжить следить за расходами и накоплениями.",
+      email: "Email",
+      password: "Пароль",
+      signIn: "Войти",
+      signingIn: "Входим...",
+      missingInfoTitle: "Не хватает данных",
+      missingInfoBody: "Введите email и пароль.",
+      loginFailedTitle: "Не удалось войти",
+      loginFailedBody: "Проверьте учетные данные и попробуйте снова.",
+      forgotPassword: "Забыли пароль?",
+      needAccount: "Нет аккаунта? Зарегистрироваться",
+      signUpCta: "Регистрация",
+      createAccount: "Создать аккаунт",
+      registerTitle: "Создать аккаунт",
+      registerSubtitle: "Присоединяйтесь, чтобы держать доходы и расходы в порядке.",
+      name: "Имя",
+      confirmPassword: "Подтвердите пароль",
+      passwordMismatch: "Пароли не совпадают.",
+      passwordMinLength: "Пароль должен быть не короче 8 символов.",
+      missingEmailPassword: "Нужен email и пароль.",
+      registerFailed: "Не удалось зарегистрироваться. Попробуйте снова.",
+      emailInUse: "Такой email уже используется. Попробуйте войти.",
+      invalidEmail: "Похоже, email неверный. Проверьте и попробуйте еще раз.",
+      weakPassword: "Пароль должен быть не короче 8 символов.",
+      registerSuccessTitle: "Добро пожаловать!",
+      registerSuccessBody: "Аккаунт создан. Пожалуйста, войдите.",
+      goToLogin: "Перейти к входу",
+      registering: "Создаем аккаунт...",
+      register: "Создать аккаунт",
+      haveAccount: "Уже есть аккаунт? Войти",
+      resetTitle: "Сброс пароля",
+      resetSubtitle: "Введите email, и мы отправим ссылку для сброса пароля.",
+      sendReset: "Отправить ссылку",
+      sending: "Отправляем...",
+      resetSuccessTitle: "Письмо отправлено",
+      resetSuccessBody: "Проверьте почту, ссылка уже там.",
+      resetFailTitle: "Сброс не удался",
+      resetFailBody: "Не удалось отправить письмо. Попробуйте еще раз.",
+      resetUserNotFound: "Аккаунт с таким email не найден.",
+      backToLogin: "Назад ко входу",
+    },
   },
   kk: {
     welcome: "Қош келдіңіз",
@@ -333,6 +464,50 @@ export const translations = {
       signOutFailed: "Шығу сәтсіз. Қайта көріңіз.",
       positiveBudget: "Бюджетке оң сома енгізіңіз.",
     },
+    auth: {
+      loginTitle: "Қайта келдіңіз",
+      loginSubtitle:
+        "Шығындар мен жинақтарыңызды бақылауды жалғастыру үшін кіріңіз.",
+      email: "Email",
+      password: "Құпиясөз",
+      signIn: "Кіру",
+      signingIn: "Кіріп жатыр...",
+      missingInfoTitle: "Дерек жетпейді",
+      missingInfoBody: "Email мен құпиясөзді енгізіңіз.",
+      loginFailedTitle: "Кіру сәтсіз",
+      loginFailedBody: "Деректерді тексеріп, қайта көріңіз.",
+      forgotPassword: "Құпиясөзді ұмыттыңыз ба?",
+      needAccount: "Аккаунт жоқ па? Тіркелу",
+      signUpCta: "Тіркелу",
+      createAccount: "Аккаунт жасау",
+      registerTitle: "Аккаунт жасау",
+      registerSubtitle: "Кіріс пен шығысты реттеуге қосылыңыз.",
+      name: "Аты",
+      confirmPassword: "Құпиясөзді растау",
+      passwordMismatch: "Құпиясөздер сәйкес емес.",
+      passwordMinLength: "Құпиясөз кемі 8 таңба болуы керек.",
+      missingEmailPassword: "Email мен құпиясөз қажет.",
+      registerFailed: "Тіркелу сәтсіз. Қайта көріңіз.",
+      emailInUse: "Бұл email бойынша аккаунт бар. Кіруге тырысыңыз.",
+      invalidEmail: "Email дұрыс емес сияқты. Тексеріп, қайта жазыңыз.",
+      weakPassword: "Құпиясөз кемі 8 таңба болуы керек.",
+      registerSuccessTitle: "Қош келдіңіз!",
+      registerSuccessBody: "Аккаунт жасалды. Кіріңіз.",
+      goToLogin: "Кіруге өту",
+      registering: "Аккаунт жасалып жатыр...",
+      register: "Аккаунт жасау",
+      haveAccount: "Аккаунт бар ма? Кіру",
+      resetTitle: "Құпиясөзді қалпына келтіру",
+      resetSubtitle: "Email енгізіңіз, біз сілтемені жібереміз.",
+      sendReset: "Сілтемені жіберу",
+      sending: "Жіберілуде...",
+      resetSuccessTitle: "Хат жіберілді",
+      resetSuccessBody: "Сілтеме үшін поштаны тексеріңіз.",
+      resetFailTitle: "Қалпына келтіру сәтсіз",
+      resetFailBody: "Хат жіберілмеді. Қайта көріңіз.",
+      resetUserNotFound: "Бұл email бойынша аккаунт табылмады.",
+      backToLogin: "Кіруге оралу",
+    },
   },
 };
 
@@ -340,18 +515,13 @@ export const supportedLocales = Object.keys(translations);
 
 // Pick the best match from the device locales and fall back to English.
 export const resolveLocale = () => {
-  const best = findBestAvailableLanguage(supportedLocales);
-  if (best?.languageTag) {
-    const normalized = best.languageTag.split("-")[0];
-    if (supportedLocales.includes(best.languageTag)) return best.languageTag;
-    if (supportedLocales.includes(normalized)) return normalized;
+  const locales = getLocales();
+  for (const locale of locales) {
+    const tag = locale.languageTag;
+    const code = locale.languageCode;
+    if (tag && supportedLocales.includes(tag)) return tag;
+    if (code && supportedLocales.includes(code)) return code;
   }
-
-  const deviceLanguage = getLocales()[0]?.languageCode;
-  if (deviceLanguage && supportedLocales.includes(deviceLanguage)) {
-    return deviceLanguage;
-  }
-
   return "en";
 };
 

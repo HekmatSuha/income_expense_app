@@ -13,16 +13,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../firebase";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [resetting, setResetting] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
+  const { t } = useLanguage();
 
   const handlePasswordReset = async () => {
     if (!email) {
-      setMessage("Please enter your email address so we can send you reset instructions.");
+      setMessage(t("auth.missingEmailPassword"));
       setMessageType("error");
       return;
     }
@@ -31,7 +33,7 @@ export default function ForgotPasswordScreen({ navigation }) {
       setResetting(true);
       setMessage("");
       await sendPasswordResetEmail(auth, email.trim());
-      setMessage("Check your inbox for a link to reset your password.");
+      setMessage(t("auth.resetSuccessBody"));
       setMessageType("success");
       setTimeout(() => {
         navigation.goBack();
@@ -40,8 +42,8 @@ export default function ForgotPasswordScreen({ navigation }) {
       console.log(err);
       const displayMessage =
         err?.code === "auth/user-not-found"
-          ? "We couldn't find an account with that email address."
-          : "We couldn't send the reset email. Please try again later.";
+          ? t("auth.resetUserNotFound")
+          : t("auth.resetFailBody");
       setMessage(displayMessage);
       setMessageType("error");
     } finally {
@@ -57,15 +59,13 @@ export default function ForgotPasswordScreen({ navigation }) {
         behavior={Platform.select({ ios: "padding", android: undefined })}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Forgot Password</Text>
-          <Text style={styles.subtitle}>
-            Enter your email address below to receive password reset instructions.
-          </Text>
+          <Text style={styles.title}>{t("auth.resetTitle")}</Text>
+          <Text style={styles.subtitle}>{t("auth.resetSubtitle")}</Text>
         </View>
 
         <View style={styles.card}>
           <TextInput
-            placeholder="Email"
+            placeholder={t("auth.email")}
             placeholderTextColor="#8A8FA6"
             autoCapitalize="none"
             style={styles.input}
@@ -88,7 +88,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             disabled={resetting}
           >
             <Text style={styles.primaryButtonText}>
-              {resetting ? "Sending reset email..." : "Reset Password"}
+              {resetting ? t("auth.sending") : t("auth.sendReset")}
             </Text>
           </TouchableOpacity>
 
@@ -97,7 +97,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             style={styles.secondaryAction}
             disabled={resetting}
           >
-            <Text style={styles.secondaryActionText}>Back to Login</Text>
+            <Text style={styles.secondaryActionText}>{t("auth.backToLogin")}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

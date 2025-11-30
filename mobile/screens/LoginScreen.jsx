@@ -14,11 +14,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { t } = useLanguage();
   const keyboardVerticalOffset = useMemo(
     () => (Platform.OS === "android" ? (StatusBar.currentHeight || 0) + 24 : 0),
     []
@@ -26,7 +28,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Missing information", "Please enter your email and password.");
+      Alert.alert(t("auth.missingInfoTitle"), t("auth.missingInfoBody"));
       return;
     }
 
@@ -36,8 +38,7 @@ export default function LoginScreen({ navigation }) {
       navigation.replace("Home");
     } catch (err) {
       console.log(err);
-      const message = "Login failed. Please check your credentials.";
-      Alert.alert("Login failed", message);
+      Alert.alert(t("auth.loginFailedTitle"), t("auth.loginFailedBody"));
     } finally {
       setLoading(false);
     }
@@ -57,16 +58,14 @@ export default function LoginScreen({ navigation }) {
           bounces={false}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>
-              Log in to continue monitoring your spending and savings goals.
-            </Text>
+            <Text style={styles.title}>{t("auth.loginTitle")}</Text>
+            <Text style={styles.subtitle}>{t("auth.loginSubtitle")}</Text>
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sign in</Text>
+            <Text style={styles.cardTitle}>{t("auth.signIn")}</Text>
             <TextInput
-              placeholder="Email"
+              placeholder={t("auth.email")}
               placeholderTextColor="#8A8FA6"
               autoCapitalize="none"
               style={styles.input}
@@ -76,7 +75,7 @@ export default function LoginScreen({ navigation }) {
               returnKeyType="next"
             />
             <TextInput
-              placeholder="Password"
+              placeholder={t("auth.password")}
               placeholderTextColor="#8A8FA6"
               value={password}
               secureTextEntry
@@ -90,7 +89,7 @@ export default function LoginScreen({ navigation }) {
               style={styles.tertiaryAction}
               disabled={loading}
             >
-              <Text style={styles.tertiaryActionText}>Forgot password?</Text>
+              <Text style={styles.tertiaryActionText}>{t("auth.forgotPassword")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -102,7 +101,7 @@ export default function LoginScreen({ navigation }) {
               disabled={loading}
             >
               <Text style={styles.primaryButtonText}>
-                {loading ? "Signing in..." : "Log in"}
+                {loading ? t("auth.signingIn") : t("auth.signIn")}
               </Text>
             </TouchableOpacity>
 
@@ -111,7 +110,7 @@ export default function LoginScreen({ navigation }) {
               style={styles.secondaryAction}
               disabled={loading}
             >
-              <Text style={styles.secondaryActionText}>Need an account? Sign up</Text>
+              <Text style={styles.secondaryActionText}>{t("auth.needAccount")}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
