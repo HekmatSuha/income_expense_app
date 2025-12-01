@@ -4,7 +4,7 @@ import { getLocales } from "expo-localization";
 export const translations = {
   en: {
     welcome: "Welcome",
-    appName: "Income Expense",
+    appName: "incomeX",
     quickActions: {
       addIncome: "Add Income",
       addExpense: "Add Expense",
@@ -58,7 +58,7 @@ export const translations = {
       language: "Language",
       appLanguage: "App Language",
       signOut: "Sign Out",
-      version: "Income Expense App v1.0.0",
+      version: "incomeX v1.0.0",
       guest: "Guest",
       notSignedIn: "Not signed in",
     },
@@ -130,7 +130,7 @@ export const translations = {
   },
   tr: {
     welcome: "Hoş geldiniz",
-    appName: "Gelir Gider",
+    appName: "incomeX",
     quickActions: {
       addIncome: "Gelir Ekle",
       addExpense: "Gider Ekle",
@@ -184,7 +184,7 @@ export const translations = {
       language: "Dil",
       appLanguage: "Uygulama Dili",
       signOut: "Çıkış Yap",
-      version: "Gelir Gider Uyg. v1.0.0",
+      version: "incomeX v1.0.0",
       guest: "Misafir",
       notSignedIn: "Giriş yapılmadı",
     },
@@ -257,7 +257,7 @@ export const translations = {
   },
   ru: {
     welcome: "Добро пожаловать",
-    appName: "Доходы и расходы",
+    appName: "incomeX",
     quickActions: {
       addIncome: "Добавить доход",
       addExpense: "Добавить расход",
@@ -311,7 +311,7 @@ export const translations = {
       language: "Язык",
       appLanguage: "Язык приложения",
       signOut: "Выйти",
-      version: "Доходы и расходы v1.0.0",
+      version: "incomeX v1.0.0",
       guest: "Гость",
       notSignedIn: "Вход не выполнен",
     },
@@ -384,7 +384,7 @@ export const translations = {
   },
   kk: {
     welcome: "Қош келдіңіз",
-    appName: "Кіріс Шығыс",
+    appName: "incomeX",
     quickActions: {
       addIncome: "Кіріс қосу",
       addExpense: "Шығыс қосу",
@@ -438,7 +438,7 @@ export const translations = {
       language: "Тіл",
       appLanguage: "Қосымша тілі",
       signOut: "Шығу",
-      version: "Кіріс Шығыс v1.0.0",
+      version: "incomeX v1.0.0",
       guest: "Қонақ",
       notSignedIn: "Кіру жасалмаған",
     },
