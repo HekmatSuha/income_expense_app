@@ -35,6 +35,21 @@ const STATUS_FILTERS = [
 ];
 
 export default function NotebookScreen({ navigation }) {
+  const COLORS = useMemo(
+    () => ({
+      primary: "#0288D1",
+      accent: "#0EA5E9",
+      surface: "#FFFFFF",
+      border: "#D0E4F2",
+      background: "#E6F3FB",
+      text: "#0F172A",
+      muted: "#64748B",
+      success: "#10B981",
+      danger: "#EF4444",
+    }),
+    []
+  );
+
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,28 +169,50 @@ export default function NotebookScreen({ navigation }) {
     return (
       <View
         key={note.id}
-        className="mb-3 rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm"
+        className="mb-3 rounded-2xl p-4 shadow-sm"
+        style={{ backgroundColor: COLORS.surface, borderColor: COLORS.border, borderWidth: 1 }}
       >
+        <View
+          className="absolute left-0 top-0 bottom-0 w-1.5"
+          style={{ backgroundColor: note.completed ? COLORS.success : COLORS.accent }}
+        />
         <View className="flex-row items-start justify-between">
           <View className="flex-1 pr-3">
-            <Text className="text-base font-semibold text-[#0F172A]">
+            <Text
+              className="text-base font-semibold"
+              style={{
+                color: COLORS.text,
+                textDecorationLine: note.completed ? "line-through" : "none",
+              }}
+            >
               {note.text}
             </Text>
             {note.date ? (
-              <Text className="mt-1 text-xs text-[#64748b]">{note.date}</Text>
+              <Text className="mt-1 text-xs" style={{ color: COLORS.muted }}>
+                {note.date}
+              </Text>
             ) : null}
           </View>
           <View className="flex-row items-center gap-3">
             <TouchableOpacity
               onPress={() => handleToggle(note.id)}
               activeOpacity={0.8}
-              className={`h-7 w-7 items-center justify-center rounded-full border ${
-                note.completed ? "bg-[#0288D1] border-[#0288D1]" : "border-[#CBD5E1]"
-              }`}
+              className="h-8 w-8 items-center justify-center rounded-full border"
+              style={{
+                borderColor: note.completed ? COLORS.success : COLORS.border,
+                backgroundColor: note.completed ? COLORS.success : COLORS.surface,
+                shadowColor: "#00000022",
+                shadowOpacity: 0.2,
+                shadowOffset: { width: 0, height: 1 },
+                shadowRadius: 2,
+                elevation: 2,
+              }}
             >
               {note.completed ? (
                 <MaterialIcons name="check" size={18} color="#FFFFFF" />
-              ) : null}
+              ) : (
+                <MaterialIcons name="radio-button-unchecked" size={18} color={COLORS.muted} />
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() =>
@@ -185,9 +222,17 @@ export default function NotebookScreen({ navigation }) {
                 ])
               }
               activeOpacity={0.8}
-              className="h-7 w-7 items-center justify-center rounded-full bg-[#FEE2E2]"
+              className="h-8 w-8 items-center justify-center rounded-full"
+              style={{
+                backgroundColor: "#FEE2E2",
+                shadowColor: "#00000022",
+                shadowOpacity: 0.2,
+                shadowOffset: { width: 0, height: 1 },
+                shadowRadius: 2,
+                elevation: 2,
+              }}
             >
-              <MaterialIcons name="delete-outline" size={18} color="#DC2626" />
+              <MaterialIcons name="delete-outline" size={18} color={COLORS.danger} />
             </TouchableOpacity>
           </View>
         </View>
@@ -196,8 +241,8 @@ export default function NotebookScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F1F5F9]">
-      <View className="bg-[#0288D1] px-4 py-5">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.background }}>
+      <View className="px-4 py-5" style={{ backgroundColor: COLORS.primary }}>
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center">
             <TouchableOpacity
@@ -229,19 +274,36 @@ export default function NotebookScreen({ navigation }) {
         }
       >
         <View className="px-4 pt-4 space-y-4">
-          <View className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm">
-            <Text className="text-lg font-semibold text-[#0F172A] mb-3">Add a task</Text>
+          <View
+            className="rounded-2xl p-4 shadow-sm"
+            style={{ backgroundColor: COLORS.surface, borderColor: COLORS.border, borderWidth: 1 }}
+          >
+            <Text className="text-lg font-semibold mb-3" style={{ color: COLORS.text }}>
+              Add a task
+            </Text>
             <TextInput
               placeholder="What do you need to do?"
               placeholderTextColor="#94A3B8"
-              className="mb-3 rounded-xl border border-[#E2E8F0] bg-white px-4 py-3 text-base text-[#0F172A]"
+              className="mb-3 rounded-xl px-4 py-3 text-base"
+              style={{
+                backgroundColor: "#F8FAFC",
+                borderColor: COLORS.border,
+                borderWidth: 1,
+                color: COLORS.text,
+              }}
               value={titleInput}
               onChangeText={setTitleInput}
             />
             <TextInput
               placeholder="Due date (YYYY-MM-DD) optional"
               placeholderTextColor="#94A3B8"
-              className="mb-3 rounded-xl border border-[#E2E8F0] bg-white px-4 py-3 text-base text-[#0F172A]"
+              className="mb-3 rounded-xl px-4 py-3 text-base"
+              style={{
+                backgroundColor: "#F8FAFC",
+                borderColor: COLORS.border,
+                borderWidth: 1,
+                color: COLORS.text,
+              }}
               value={dateInput}
               onChangeText={setDateInput}
             />
@@ -249,7 +311,8 @@ export default function NotebookScreen({ navigation }) {
               <TouchableOpacity
                 onPress={handleAddNote}
                 activeOpacity={0.85}
-                className="rounded-full bg-[#0288D1] px-5 py-3"
+                className="rounded-full px-5 py-3"
+                style={{ backgroundColor: COLORS.primary }}
               >
                 <Text className="text-white font-semibold">Add task</Text>
               </TouchableOpacity>
@@ -264,16 +327,18 @@ export default function NotebookScreen({ navigation }) {
                   key={item.key}
                   onPress={() => setFilter(item.key)}
                   activeOpacity={0.8}
-                  className={`mr-2 rounded-full px-4 py-2 border ${
-                    isActive ? "bg-[#0288D1] border-[#0288D1]" : "bg-white border-[#E2E8F0]"
-                  }`}
-                  style={{ minWidth: 96 }}
+                  className="mr-2 rounded-full px-4 py-2 border"
+                  style={{
+                    minWidth: 96,
+                    borderColor: isActive ? COLORS.primary : COLORS.border,
+                    backgroundColor: isActive ? COLORS.primary : COLORS.surface,
+                    shadowColor: "#00000011",
+                    shadowOpacity: 0.2,
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowRadius: 2,
+                  }}
                 >
-                  <Text
-                    className={`text-sm font-semibold ${
-                      isActive ? "text-white" : "text-[#0F172A]"
-                    }`}
-                  >
+                  <Text className="text-sm font-semibold" style={{ color: isActive ? "#FFFFFF" : COLORS.text }}>
                     {item.label}
                   </Text>
                 </TouchableOpacity>
@@ -288,18 +353,29 @@ export default function NotebookScreen({ navigation }) {
           ) : null}
 
           <View className="pt-2">
-            <Text className="text-sm font-semibold text-[#0F172A] mb-2">Tasks</Text>
+            <Text className="text-sm font-semibold mb-2" style={{ color: COLORS.text }}>
+              Tasks
+            </Text>
             {loading ? (
-              <View className="items-center justify-center py-10 rounded-2xl border border-[#E2E8F0] bg-white">
-                <Text className="text-[#64748b]">Loading tasks...</Text>
+              <View
+                className="items-center justify-center py-10 rounded-2xl border"
+                style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface }}
+              >
+                <Text className="text-sm" style={{ color: COLORS.muted }}>
+                  Loading tasks...
+                </Text>
               </View>
             ) : filteredNotes.length === 0 ? (
-              <View className="items-center justify-center py-12 rounded-2xl border border-dashed border-[#CBD5E1] bg-white">
+              <View
+                className="items-center justify-center py-12 rounded-2xl border border-dashed"
+                style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface }}
+              >
                 <Text className="text-[#64748b] mb-3">No tasks yet</Text>
                 <TouchableOpacity
                   onPress={handleAddNote}
                   activeOpacity={0.85}
-                  className="rounded-full bg-[#0288D1] px-5 py-3"
+                  className="rounded-full px-5 py-3"
+                  style={{ backgroundColor: COLORS.primary }}
                 >
                   <Text className="text-white font-semibold">Add your first task</Text>
                 </TouchableOpacity>
