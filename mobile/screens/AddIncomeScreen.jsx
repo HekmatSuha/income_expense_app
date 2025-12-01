@@ -229,15 +229,16 @@ export default function AddIncomeScreen({ navigation }) {
         if (!Array.isArray(accounts) || accounts.length === 0) {
           return null;
         }
-        if (!prev) {
-          return accounts[0];
+        if (prev) {
+          const matched = accounts.find((item) => item.id === prev.id);
+          return matched || null;
         }
-        const matched = accounts.find((item) => item.id === prev.id);
-        return matched || accounts[0];
+        return null;
       });
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
-      setAccount((prev) => prev || null);
+      setBankAccounts([]);
+      setAccount(null);
     }
   }, []);
 

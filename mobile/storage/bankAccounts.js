@@ -3,29 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STORAGE_KEY = "@income-expense-app/bank-accounts";
 const DEFAULT_USER_ID = "local-user";
 
-export const DEFAULT_BANK_ACCOUNTS = [
-  {
-    id: "demo-checking",
-    name: "Main Checking",
-    type: "Checking",
-    startingBalance: 2450.75,
-    currency: "USD",
-  },
-  {
-    id: "demo-savings",
-    name: "High-Yield Savings",
-    type: "Savings",
-    startingBalance: 7200.5,
-    currency: "USD",
-  },
-  {
-    id: "demo-cash",
-    name: "Cash Wallet",
-    type: "Cash",
-    startingBalance: 180.25,
-    currency: "USD",
-  },
-];
+export const DEFAULT_BANK_ACCOUNTS = [];
 
 const readAll = async () => {
   try {
@@ -103,13 +81,6 @@ export const getLocalBankAccounts = async (userId = DEFAULT_USER_ID) => {
   const all = await readAll();
   const stored = Array.isArray(all[userId]) ? all[userId] : [];
 
-  if (stored.length === 0) {
-    const defaults = cloneDefaultAccounts();
-    all[userId] = defaults;
-    await writeAll(all);
-    return defaults.map((item) => normalizeAccount(item));
-  }
-
   return stored.map((account) => normalizeAccount(account));
 };
 
@@ -117,7 +88,7 @@ export const setLocalBankAccounts = async (userId, accounts) => {
   const all = await readAll();
   const normalized = Array.isArray(accounts)
     ? accounts.map((account) => prepareForStorage(account))
-    : cloneDefaultAccounts();
+    : [];
   all[userId || DEFAULT_USER_ID] = normalized;
   await writeAll(all);
   return normalized.map((account) => normalizeAccount(account));

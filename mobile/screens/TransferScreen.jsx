@@ -142,22 +142,25 @@ export default function TransferScreen({ navigation }) {
         if (!Array.isArray(accounts) || accounts.length === 0) {
           return null;
         }
-        if (!prev) {
-          return accounts[0];
+        if (prev) {
+          return accounts.find((item) => item.id === prev.id) || null;
         }
-        return accounts.find((item) => item.id === prev.id) || accounts[0];
+        return null;
       });
       setToAccount((prev) => {
         if (!Array.isArray(accounts) || accounts.length === 0) {
           return null;
         }
-        if (!prev) {
-          return accounts[1] || accounts[0];
+        if (prev) {
+          return accounts.find((item) => item.id === prev.id) || null;
         }
-        return accounts.find((item) => item.id === prev.id) || accounts[1] || accounts[0];
+        return null;
       });
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
+      setBankAccounts([]);
+      setFromAccount(null);
+      setToAccount(null);
     }
   }, []);
 
