@@ -38,7 +38,12 @@ service cloud.firestore {
       // Transactions Subcollection
       // Matches documents like /users/USER_ID/transactions/TRANSACTION_ID
       match /transactions/{transactionId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isOwner(userId) &&
+          resource.data.userId == userId &&
+          request.resource.data.userId == userId;
+        allow delete: if isOwner(userId);
       }
     }
   }

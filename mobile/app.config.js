@@ -26,8 +26,8 @@ export default ({ config }) => ({
   ...baseExpoConfig,
 
   // Your custom app settings
-  name: "Income Expense",
-  slug: "mobile",
+  name: "incomeX",
+  slug: "incomex",
 
   // ANDROID MUST COME AFTER spreads so it doesn't get overwritten
   android: {
