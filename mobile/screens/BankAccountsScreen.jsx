@@ -360,11 +360,13 @@ export default function BankAccountsScreen({ navigation }) {
               </View>
             ) : (
               accounts.map((account, index) => (
-                <View
+                <TouchableOpacity
                   key={account.id}
                   className={`px-4 py-4 border-b border-gray-100 ${
                     index === accounts.length - 1 ? "border-b-0" : ""
                   }`}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate("BankAccountDetail", { accountId: account.id })}
                 >
                   <View className="flex-row items-center justify-between">
                     <View>
@@ -383,7 +385,7 @@ export default function BankAccountsScreen({ navigation }) {
                       />
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
