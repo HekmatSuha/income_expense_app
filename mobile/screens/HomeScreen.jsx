@@ -28,6 +28,7 @@ import NavbarDrawer from "../components/NavbarDrawer";
 import { currencies } from "../constants/currencies";
 import { getBudgetForUser, setBudgetForUser } from "../storage/budget";
 import { useLanguage } from "../context/LanguageContext";
+import AppHeader from "../components/AppHeader";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -80,9 +81,14 @@ const formatNumber = (value) => {
 };
 
 const formatCurrency = (value, currencyCode = DEFAULT_CURRENCY) => {
+  const numeric = Number(value) || 0;
+  const formatted = formatNumber(numeric);
+  if (numeric === 0) {
+    return formatted; // hide currency when amount is zero
+  }
   const code = currencyCode ? currencyCode.toUpperCase() : DEFAULT_CURRENCY;
   const symbol = currencySymbolMap[code] || code;
-  return `${symbol} ${formatNumber(value)}`;
+  return `${symbol} ${formatted}`;
 };
 
 const addToCurrencyMap = (map, currencyCode, amount) => {
@@ -552,29 +558,26 @@ export default function HomeScreen({ navigation }) {
     }
   }, [navigation, t]);
 
+  const monthLabel = useMemo(() => {
+    try {
+      return new Date().toLocaleDateString(undefined, {
+        month: "long",
+        year: "numeric",
+      });
+    } catch (error) {
+      return "";
+    }
+  }, []);
+
   return (
     <SafeAreaView className="flex-1 bg-background-light">
-      <View className="bg-primary px-4 pt-6 pb-4">
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity
-            className="p-2"
-            activeOpacity={0.7}
-            onPress={() => setNavbarVisible(true)}
-          >
-            <MaterialIcons name="menu" size={26} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View className="items-center">
-            <Text className="text-white text-xl font-bold">{t("appName")}</Text>
-            <View className="flex-row items-center mt-1">
-              <Text className="text-white text-sm font-medium">October 2025</Text>
-              <MaterialIcons name="expand-more" size={18} color="#FFFFFF" />
-            </View>
-          </View>
-          <TouchableOpacity className="p-2" activeOpacity={0.7}>
-            <MaterialIcons name="notifications" size={26} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AppHeader
+        title={t("appName")}
+        subtitle={monthLabel || t("home.currentMonth")}
+        onMenuPress={() => setNavbarVisible(true)}
+        rightIconName="notifications"
+        onRightPress={() => {}}
+      />
 
       <Navigation activeTab="home" onTabChange={handleTabChange} />
 

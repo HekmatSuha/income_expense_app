@@ -56,6 +56,31 @@ const normalizeBankAccount = (bankAccount) => {
 
 const sanitizeAccountKey = (value) => (value || "").trim().toLowerCase();
 
+// Keep updates minimal so we do not overwrite existing account fields with defaults.
+const sanitizeBankAccountUpdates = (updates = {}) => {
+  const payload = {};
+
+  if ("name" in updates) {
+    payload.name = updates.name?.trim() || "Account";
+  }
+
+  if ("type" in updates) {
+    payload.type = updates.type?.trim() || "Account";
+  }
+
+  if ("currency" in updates) {
+    payload.currency = updates.currency || "USD";
+  }
+
+  if ("startingBalance" in updates || "balance" in updates) {
+    const rawBalance = updates.startingBalance ?? updates.balance;
+    const numericBalance = Number(rawBalance);
+    payload.startingBalance = Number.isFinite(numericBalance) ? numericBalance : 0;
+  }
+
+  return payload;
+};
+
 const buildBalanceMapFromTransactions = (transactions) => {
   return transactions.reduce((map, transaction) => {
     const key = sanitizeAccountKey(transaction?.paymentAccount);
@@ -176,10 +201,10 @@ export const updateBankAccount = async (accountId, updates) => {
   const user = await waitForAuthenticatedUser();
   const targetUserId = user?.uid || LOCAL_USER_ID;
 
-  const normalized = normalizeBankAccount({ id: accountId, ...updates });
+  const sanitizedUpdates = sanitizeBankAccountUpdates(updates);
   const persistLocally = async (overrides = {}) =>
     updateLocalBankAccount(targetUserId, accountId, {
-      ...normalized,
+      ...sanitizedUpdates,
       ...overrides,
     });
 
@@ -189,10 +214,7 @@ export const updateBankAccount = async (accountId, updates) => {
 
   try {
     await updateDoc(getBankAccountDocRef(user.uid, accountId), {
-      name: normalized.name,
-      type: normalized.type,
-      currency: normalized.currency,
-      startingBalance: normalized.startingBalance,
+      ...sanitizedUpdates,
       updatedAt: new Date().toISOString(),
     });
     return persistLocally({ id: accountId });

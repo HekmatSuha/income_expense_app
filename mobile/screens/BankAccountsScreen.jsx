@@ -24,6 +24,7 @@ import Navigation from "../components/Navigation";
 import NavbarDrawer from "../components/NavbarDrawer";
 import AccountActionsMenu from "../components/menus/AccountActionsMenu";
 import { currencies } from "../constants/currencies";
+import AppHeader from "../components/AppHeader";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const ScrollView = styled(RNScrollView);
@@ -307,29 +308,19 @@ export default function BankAccountsScreen({ navigation }) {
 
   return (
     <SafeAreaView className="flex-1 bg-brand-surface">
-      <View className="bg-brand-sky px-4 py-5">
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity
-            className="p-1 mr-2"
-            activeOpacity={0.7}
-            onPress={() => setNavbarVisible(true)}
-          >
-            <MaterialIcons name="menu" size={26} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text className="text-white text-xl font-semibold flex-1">Bank Accounts</Text>
-          <View className="bg-white-15 rounded-full p-3">
-            <MaterialIcons name="account-balance" size={24} color="#FFFFFF" />
-          </View>
-        </View>
-        <View className="mt-4">
-          <Text className="text-white text-sm">Total balance</Text>
-          <Text className="text-white text-2xl font-bold mt-1">
-            {currencyBreakdownLabel}
-          </Text>
-        </View>
-      </View>
+      <AppHeader
+        title="Bank Accounts"
+        onMenuPress={() => setNavbarVisible(true)}
+        rightIconName="account-balance"
+        onRightPress={() => {}}
+      />
 
       <Navigation activeTab="bankAccounts" onTabChange={handleTabChange} />
+
+      <View className="bg-white px-4 py-3 border-b border-brand-sky-10">
+        <Text className="text-sm text-brand-slate-600">Total balance</Text>
+        <Text className="text-2xl font-bold text-brand-sky mt-1">{currencyBreakdownLabel}</Text>
+      </View>
 
       <ScrollView
         className="flex-1"

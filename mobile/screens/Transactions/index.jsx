@@ -16,7 +16,6 @@ import {
   setTransactionsForUser,
 } from "../../storage/transactions";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import Header from "./components/Header";
 import Summary from "./components/Summary";
 import FilterBar from "./components/FilterBar";
 import TransactionsList from "./components/TransactionsList";
@@ -31,6 +30,8 @@ import {
   updateTransaction as updateTransactionRecord,
   deleteTransaction as deleteTransactionRecord,
 } from "../../services/transactionRepository";
+import AppHeader from "../../components/AppHeader";
+import { useNavigation } from "@react-navigation/native";
 
 const SafeAreaView = styled(RNSafeAreaView);
 const View = styled(RNView);
@@ -86,6 +87,7 @@ const getPeriodRange = (period, startDate, endDate) => {
 };
 
 export default function TransactionsScreen() {
+  const navigation = useNavigation();
   const [transactions, setTransactions] = useState([]);
   const [filters, setFilters] = useState({
     query: "",
@@ -409,7 +411,17 @@ export default function TransactionsScreen() {
     <>
       <SafeAreaView className="flex-1 bg-background-light">
       <View className="flex-1 bg-background-light relative">
-        <Header onExport={handleExport} />
+        <AppHeader
+          title="Transactions"
+          leftIconName="arrow-back-ios"
+          onMenuPress={() => {
+            if (navigation.canGoBack?.()) {
+              navigation.goBack();
+            }
+          }}
+          rightIconName="share"
+          onRightPress={handleExport}
+        />
         <Summary summaryData={summaryData} />
         <FilterBar
           filters={filters}

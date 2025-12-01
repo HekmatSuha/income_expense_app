@@ -8,13 +8,14 @@ import {
   TouchableOpacity as RNTouchableOpacity,
   View as RNView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { styled } from "../packages/nativewind";
 import { auth } from "../firebase";
 import Navigation from "../components/Navigation";
 import NavbarDrawer from "../components/NavbarDrawer";
+import AppHeader from "../components/AppHeader";
 import {
   addLocalNote,
   deleteLocalNote,
@@ -27,6 +28,7 @@ const Text = styled(RNText);
 const TextInput = styled(RNTextInput);
 const TouchableOpacity = styled(RNTouchableOpacity);
 const View = styled(RNView);
+const SafeAreaView = styled(RNSafeAreaView);
 
 const STATUS_FILTERS = [
   { key: "all", label: "All" },
@@ -242,27 +244,24 @@ export default function NotebookScreen({ navigation }) {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.background }}>
-      <View className="px-4 py-5" style={{ backgroundColor: COLORS.primary }}>
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center">
-            <TouchableOpacity
-              className="p-1 mr-2"
-              activeOpacity={0.7}
-              onPress={() => setNavbarVisible(true)}
-            >
-              <MaterialIcons name="menu" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text className="text-white text-xl font-semibold">Notebook</Text>
-          </View>
-          <View className="flex-row items-center space-x-3" />
-        </View>
-      </View>
+      <AppHeader
+        title="Notebook"
+        onMenuPress={() => setNavbarVisible(true)}
+        rightIconName="notifications"
+        onRightPress={() => {}}
+        backgroundColor={COLORS.primary}
+      />
 
       <Navigation activeTab="notebook" onTabChange={handleTabChange} />
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{
+          paddingBottom: 180,
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          flexGrow: 1,
+        }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -273,117 +272,112 @@ export default function NotebookScreen({ navigation }) {
           />
         }
       >
-        <View className="px-4 pt-4 space-y-4">
-          <View
-            className="rounded-2xl p-4 shadow-sm"
-            style={{ backgroundColor: COLORS.surface, borderColor: COLORS.border, borderWidth: 1 }}
-          >
-            <Text className="text-lg font-semibold mb-3" style={{ color: COLORS.text }}>
-              Add a task
-            </Text>
-            <TextInput
-              placeholder="What do you need to do?"
-              placeholderTextColor="#94A3B8"
-              className="mb-3 rounded-xl px-4 py-3 text-base"
-              style={{
-                backgroundColor: "#F8FAFC",
-                borderColor: COLORS.border,
-                borderWidth: 1,
-                color: COLORS.text,
-              }}
-              value={titleInput}
-              onChangeText={setTitleInput}
-            />
-            <TextInput
-              placeholder="Due date (YYYY-MM-DD) optional"
-              placeholderTextColor="#94A3B8"
-              className="mb-3 rounded-xl px-4 py-3 text-base"
-              style={{
-                backgroundColor: "#F8FAFC",
-                borderColor: COLORS.border,
-                borderWidth: 1,
-                color: COLORS.text,
-              }}
-              value={dateInput}
-              onChangeText={setDateInput}
-            />
-            <View className="flex-row justify-end">
+        <View className="rounded-2xl p-4 shadow-sm mb-4" style={{ backgroundColor: COLORS.surface, borderColor: COLORS.border, borderWidth: 1 }}>
+          <Text className="text-lg font-semibold mb-3" style={{ color: COLORS.text }}>
+            Add a task
+          </Text>
+          <TextInput
+            placeholder="What do you need to do?"
+            placeholderTextColor="#94A3B8"
+            className="mb-3 rounded-xl px-4 py-3 text-base"
+            style={{
+              backgroundColor: "#F8FAFC",
+              borderColor: COLORS.border,
+              borderWidth: 1,
+              color: COLORS.text,
+            }}
+            value={titleInput}
+            onChangeText={setTitleInput}
+          />
+          <TextInput
+            placeholder="Due date (YYYY-MM-DD) optional"
+            placeholderTextColor="#94A3B8"
+            className="mb-3 rounded-xl px-4 py-3 text-base"
+            style={{
+              backgroundColor: "#F8FAFC",
+              borderColor: COLORS.border,
+              borderWidth: 1,
+              color: COLORS.text,
+            }}
+            value={dateInput}
+            onChangeText={setDateInput}
+          />
+          <View className="flex-row justify-end">
+            <TouchableOpacity
+              onPress={handleAddNote}
+              activeOpacity={0.85}
+              className="rounded-full px-5 py-3"
+              style={{ backgroundColor: COLORS.primary }}
+            >
+              <Text className="text-white font-semibold">Add task</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View className="flex-row mb-4">
+          {STATUS_FILTERS.map((item) => {
+            const isActive = filter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => setFilter(item.key)}
+                activeOpacity={0.8}
+                className="mr-2 rounded-full px-4 py-2 border"
+                style={{
+                  minWidth: 96,
+                  borderColor: isActive ? COLORS.primary : COLORS.border,
+                  backgroundColor: isActive ? COLORS.primary : COLORS.surface,
+                  shadowColor: "#00000011",
+                  shadowOpacity: 0.2,
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowRadius: 2,
+                }}
+              >
+                <Text className="text-sm font-semibold" style={{ color: isActive ? "#FFFFFF" : COLORS.text }}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {error ? (
+          <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 mb-4">
+            <Text className="text-sm font-medium text-red-700">{error}</Text>
+          </View>
+        ) : null}
+
+        <View className="pt-2">
+          <Text className="text-sm font-semibold mb-2" style={{ color: COLORS.text }}>
+            Tasks
+          </Text>
+          {loading ? (
+            <View
+              className="items-center justify-center py-10 rounded-2xl border"
+              style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface }}
+            >
+              <Text className="text-sm" style={{ color: COLORS.muted }}>
+                Loading tasks...
+              </Text>
+            </View>
+          ) : filteredNotes.length === 0 ? (
+            <View
+              className="items-center justify-center py-12 rounded-2xl border"
+              style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface, borderStyle: "dashed" }}
+            >
+              <Text className="text-[#64748b] mb-3">No tasks yet</Text>
               <TouchableOpacity
                 onPress={handleAddNote}
                 activeOpacity={0.85}
                 className="rounded-full px-5 py-3"
                 style={{ backgroundColor: COLORS.primary }}
               >
-                <Text className="text-white font-semibold">Add task</Text>
+                <Text className="text-white font-semibold">Add your first task</Text>
               </TouchableOpacity>
             </View>
-          </View>
-
-          <View className="flex-row">
-            {STATUS_FILTERS.map((item) => {
-              const isActive = filter === item.key;
-              return (
-                <TouchableOpacity
-                  key={item.key}
-                  onPress={() => setFilter(item.key)}
-                  activeOpacity={0.8}
-                  className="mr-2 rounded-full px-4 py-2 border"
-                  style={{
-                    minWidth: 96,
-                    borderColor: isActive ? COLORS.primary : COLORS.border,
-                    backgroundColor: isActive ? COLORS.primary : COLORS.surface,
-                    shadowColor: "#00000011",
-                    shadowOpacity: 0.2,
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowRadius: 2,
-                  }}
-                >
-                  <Text className="text-sm font-semibold" style={{ color: isActive ? "#FFFFFF" : COLORS.text }}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {error ? (
-            <View className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-              <Text className="text-sm font-medium text-red-700">{error}</Text>
-            </View>
-          ) : null}
-
-          <View className="pt-2">
-            <Text className="text-sm font-semibold mb-2" style={{ color: COLORS.text }}>
-              Tasks
-            </Text>
-            {loading ? (
-              <View
-                className="items-center justify-center py-10 rounded-2xl border"
-                style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface }}
-              >
-                <Text className="text-sm" style={{ color: COLORS.muted }}>
-                  Loading tasks...
-                </Text>
-              </View>
-            ) : filteredNotes.length === 0 ? (
-              <View
-                className="items-center justify-center py-12 rounded-2xl border border-dashed"
-                style={{ borderColor: COLORS.border, backgroundColor: COLORS.surface }}
-              >
-                <Text className="text-[#64748b] mb-3">No tasks yet</Text>
-                <TouchableOpacity
-                  onPress={handleAddNote}
-                  activeOpacity={0.85}
-                  className="rounded-full px-5 py-3"
-                  style={{ backgroundColor: COLORS.primary }}
-                >
-                  <Text className="text-white font-semibold">Add your first task</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              filteredNotes.map(renderNoteCard)
-            )}
-          </View>
+          ) : (
+            filteredNotes.map(renderNoteCard)
+          )}
         </View>
       </ScrollView>
 

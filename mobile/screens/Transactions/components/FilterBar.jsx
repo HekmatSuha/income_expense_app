@@ -8,6 +8,7 @@ import {
   ScrollView as RNScrollView,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { styled } from "../../../packages/nativewind";
@@ -75,8 +76,8 @@ const FilterBar = ({
 
   return (
     <View className="bg-card-light border-b border-gray-100 shadow-sm z-10">
-      <View className="px-4 py-3 flex-row items-center gap-3">
-        <View className="flex-1 flex-row items-center bg-background-light rounded-2xl px-3 py-2.5 border border-gray-100">
+      <View className="px-4 py-2 flex-row items-center gap-3">
+        <View className="flex-1 flex-row items-center bg-background-light rounded-xl px-3 py-2 border border-gray-100">
           <Feather name="search" size={18} color="#6C757D" />
           <TextInput
             className="flex-1 px-2 text-sm text-text-light"
@@ -93,7 +94,7 @@ const FilterBar = ({
           ) : null}
         </View>
         <TouchableOpacity
-          className={`flex-row items-center gap-2 px-4 py-2.5 rounded-2xl border ${
+          className={`flex-row items-center gap-2 px-3 py-2 rounded-xl border ${
             activeFiltersCount
               ? "border-primary bg-primary/10"
               : "border-gray-100 bg-card-light"
@@ -119,14 +120,16 @@ const FilterBar = ({
       <Modal
         visible={isFilterModalVisible}
         animationType="slide"
-        presentationStyle="pageSheet"
+        transparent
+        statusBarTranslucent
         onRequestClose={() => setFilterModalVisible(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.modalContainer}
         >
-          <View className="flex-1 bg-background-light">
+          <View style={styles.backdrop} />
+          <View className="flex-1 bg-background-light rounded-t-3xl overflow-hidden">
             <View className="bg-card-light px-4 py-4 border-b border-gray-100 flex-row justify-between items-center">
               <Text className="text-lg font-bold text-text-light">Filters</Text>
               <TouchableOpacity
@@ -289,3 +292,14 @@ const FilterBar = ({
 };
 
 export default FilterBar;
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+});
