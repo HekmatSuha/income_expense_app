@@ -27,7 +27,7 @@ export default ({ config }) => ({
 
   // Your custom app settings
   name: "incomeX",
-  slug: "incomex",
+  slug: "mobile",
 
   // ANDROID MUST COME AFTER spreads so it doesn't get overwritten
   android: {

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "incomeX",
-    "slug": "incomex",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,7 +20,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.hekmatsuha.incomeexpense",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,6 +31,12 @@
       "eas": {
         "projectId": "3bf1b107-21ed-44c2-bf58-5ae67e66f539"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3bf1b107-21ed-44c2-bf58-5ae67e66f539"
     }
   }
 }
