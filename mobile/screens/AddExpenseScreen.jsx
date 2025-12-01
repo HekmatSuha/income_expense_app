@@ -5,12 +5,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
   TouchableOpacity,
   View,
   Modal,
   FlatList,
   Linking,
-  Platform,
 } from "react-native";
 import DateTimePicker, {
   DateTimePickerAndroid,
@@ -755,10 +756,16 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
         >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
           <View style={styles.section}>
             <Text style={styles.expenseLabel}>Expense</Text>
             <View style={styles.inputWithIcon}>
@@ -950,6 +957,7 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
 
         </ScrollView>
+        </KeyboardAvoidingView>
       </View>
 
       <View style={styles.bottomBar}>

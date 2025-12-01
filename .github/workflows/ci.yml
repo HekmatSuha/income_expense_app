@@ -36,8 +36,10 @@ jobs:
 
   preview-build:
     needs: health-check
-    if: ${{ secrets.EAS_TOKEN != '' }}
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.repo.full_name != '' }}
     runs-on: ubuntu-latest
+    env:
+      EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
     defaults:
       run:
         working-directory: mobile
@@ -59,11 +61,7 @@ jobs:
         run: npm i -g eas-cli
 
       - name: EAS preview build (Android)
-        env:
-          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
         run: eas build --profile preview --platform android --non-interactive --no-wait
 
       - name: EAS preview build (iOS)
-        env:
-          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
         run: eas build --profile preview --platform ios --non-interactive --no-wait

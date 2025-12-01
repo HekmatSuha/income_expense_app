@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  KeyboardAvoidingView,
 } from "react-native";
 import DateTimePicker, {
   DateTimePickerAndroid,
@@ -332,9 +333,15 @@ export default function TransferScreen({ navigation }) {
           <View style={styles.headerPlaceholder} />
         </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Amount</Text>
@@ -466,6 +473,7 @@ export default function TransferScreen({ navigation }) {
             <Text style={styles.transferButtonText}>Transfer</Text>
           </TouchableOpacity>
         </ScrollView>
+      </KeyboardAvoidingView>
       </View>
 
       <AccountListModal
