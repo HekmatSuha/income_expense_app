@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -19,7 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { getBankAccounts } from "../services/bankAccountRepository";
-import { persistTransaction } from "../services/transactionRepository";
+import { persistTransaction, updateTransaction } from "../services/transactionRepository";
 
 const parseDateTimeToISO = (dateString, timeString) => {
   const normalizedDate = (dateString || "").replace(/-/g, " ");
@@ -116,7 +116,7 @@ const AccountListModal = ({ visible, accounts, onSelect, onClose, title }) => (
   </Modal>
 );
 
-export default function TransferScreen({ navigation }) {
+export default function TransferScreen({ navigation, route }) {
   const [amount, setAmount] = useState("");
   const [bankAccounts, setBankAccounts] = useState([]);
   const [fromAccount, setFromAccount] = useState(null);
@@ -129,10 +129,19 @@ export default function TransferScreen({ navigation }) {
   const [isDateTimePickerVisible, setDateTimePickerVisible] = useState(false);
   const [pickerMode, setPickerMode] = useState("date");
   const [pendingPickerValue, setPendingPickerValue] = useState(new Date());
+  const editingTransaction = route?.params?.transaction;
+  const isEditing = route?.params?.mode === "edit" || !!editingTransaction;
+  const [hasPrefilled, setHasPrefilled] = useState(false);
 
   const currentDateTime = useMemo(
     () => new Date(parseDateTimeToISO(date, time)),
     [date, time]
+  );
+  const headerTitle = isEditing ? "Edit Transfer" : "Transfer";
+  const saveButtonLabel = isEditing ? "Save changes" : "Transfer";
+  const isEditingOutgoing = useMemo(
+    () => Number(editingTransaction?.amount ?? 0) < 0,
+    [editingTransaction]
   );
 
   const loadBankAccounts = useCallback(async () => {
@@ -141,21 +150,21 @@ export default function TransferScreen({ navigation }) {
       setBankAccounts(accounts);
       setFromAccount((prev) => {
         if (!Array.isArray(accounts) || accounts.length === 0) {
-          return null;
+          return prev;
         }
         if (prev) {
-          return accounts.find((item) => item.id === prev.id) || null;
+          return accounts.find((item) => item.id === prev.id) || prev;
         }
-        return null;
+        return accounts[0] || null;
       });
       setToAccount((prev) => {
         if (!Array.isArray(accounts) || accounts.length === 0) {
-          return null;
+          return prev;
         }
         if (prev) {
-          return accounts.find((item) => item.id === prev.id) || null;
+          return accounts.find((item) => item.id === prev.id) || prev;
         }
-        return null;
+        return accounts[0] || null;
       });
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
@@ -170,6 +179,80 @@ export default function TransferScreen({ navigation }) {
       loadBankAccounts();
     }, [loadBankAccounts])
   );
+
+  useEffect(() => {
+    if (!isEditing || hasPrefilled) {
+      return;
+    }
+    const tx = editingTransaction || {};
+    const rawAmount = Math.abs(Number(tx.amount ?? tx.amountValue ?? 0));
+    if (Number.isFinite(rawAmount) && rawAmount > 0) {
+      setAmount(formatAmountInput(String(rawAmount)));
+    }
+    if (tx.note) {
+      setNotes(tx.note);
+    }
+    const timestamp = tx.createdAt || tx.date || tx.time;
+    const parsedDate = timestamp ? new Date(timestamp) : null;
+    if (parsedDate && !Number.isNaN(parsedDate.getTime())) {
+      setDate(formatDisplayDate(parsedDate));
+      setTime(formatDisplayTime(parsedDate));
+    }
+    setHasPrefilled(true);
+  }, [editingTransaction, hasPrefilled, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing || !editingTransaction) {
+      return;
+    }
+    const sourceName =
+      editingTransaction.transferFrom ||
+      (isEditingOutgoing ? editingTransaction.paymentAccount : editingTransaction.transferFrom) ||
+      editingTransaction.paymentAccount;
+    const destinationName =
+      editingTransaction.transferTo ||
+      (!isEditingOutgoing ? editingTransaction.paymentAccount : editingTransaction.transferTo) ||
+      editingTransaction.paymentAccount;
+
+    if (sourceName && (!fromAccount || fromAccount.name !== sourceName)) {
+      const match =
+        bankAccounts.find((item) => item.name === sourceName) ||
+        bankAccounts.find((item) => item.id === sourceName);
+      if (match) {
+        setFromAccount(match);
+      } else if (!fromAccount) {
+        setFromAccount({
+          id: `from-${Date.now()}`,
+          name: sourceName,
+          currency: editingTransaction.currency,
+          balance: Number(editingTransaction.balance) || 0,
+        });
+      }
+    }
+
+    if (destinationName && (!toAccount || toAccount.name !== destinationName)) {
+      const match =
+        bankAccounts.find((item) => item.name === destinationName) ||
+        bankAccounts.find((item) => item.id === destinationName);
+      if (match) {
+        setToAccount(match);
+      } else if (!toAccount) {
+        setToAccount({
+          id: `to-${Date.now()}`,
+          name: destinationName,
+          currency: editingTransaction.currency,
+          balance: Number(editingTransaction.balance) || 0,
+        });
+      }
+    }
+  }, [
+    bankAccounts,
+    editingTransaction,
+    fromAccount,
+    toAccount,
+    isEditing,
+    isEditingOutgoing,
+  ]);
 
   const handleAmountChange = useCallback((text) => {
     setAmount(formatAmountInput(text));
@@ -247,7 +330,7 @@ export default function TransferScreen({ navigation }) {
       Alert.alert("Missing accounts", "Please select both source and destination accounts.");
       return;
     }
-    if (fromAccount.id === toAccount.id) {
+    if (fromAccount.id === toAccount.id || fromAccount.name === toAccount.name) {
       Alert.alert("Invalid accounts", "Please select two different accounts.");
       return;
     }
@@ -258,6 +341,7 @@ export default function TransferScreen({ navigation }) {
       return;
     }
 
+    const normalizedAmount = Math.abs(numericAmount);
     const timestamp = parseDateTimeToISO(date, time);
     const sharedMeta = {
       type: "TRANSFER",
@@ -267,10 +351,38 @@ export default function TransferScreen({ navigation }) {
     };
 
     try {
+      if (isEditing && editingTransaction?.id) {
+        const isOutgoingEntry = Number(editingTransaction.amount ?? 0) < 0;
+        const updatedPayload = {
+          ...sharedMeta,
+          amount: isOutgoingEntry ? -normalizedAmount : normalizedAmount,
+          paymentAccount: isOutgoingEntry ? fromAccount.name : toAccount.name,
+          currency: isOutgoingEntry ? fromAccount.currency : toAccount.currency,
+          transferFrom: fromAccount.name,
+          transferTo: toAccount.name,
+        };
+        const result = await updateTransaction(editingTransaction.id, updatedPayload);
+
+        if (result.status === "local-only") {
+          Alert.alert(
+            "Saved locally",
+            "We'll sync this transfer change when you're back online or signed in."
+          );
+        } else if (result.status === "offline-fallback") {
+          Alert.alert(
+            "Saved offline",
+            "We'll sync this transfer with your account once you're back online."
+          );
+        }
+
+        navigation.goBack();
+        return;
+      }
+
       const statuses = [];
       const outgoing = await persistTransaction({
         ...sharedMeta,
-        amount: -Math.abs(numericAmount),
+        amount: -normalizedAmount,
         paymentAccount: fromAccount.name,
         currency: fromAccount.currency,
         transferTo: toAccount.name,
@@ -279,7 +391,7 @@ export default function TransferScreen({ navigation }) {
 
       const incoming = await persistTransaction({
         ...sharedMeta,
-        amount: Math.abs(numericAmount),
+        amount: normalizedAmount,
         paymentAccount: toAccount.name,
         currency: toAccount.currency,
         transferFrom: fromAccount.name,
@@ -312,7 +424,17 @@ export default function TransferScreen({ navigation }) {
         "Unable to save the transfer at the moment. Please try again."
       );
     }
-  }, [amount, date, fromAccount, navigation, notes, time, toAccount]);
+  }, [
+    amount,
+    date,
+    editingTransaction,
+    fromAccount,
+    isEditing,
+    navigation,
+    notes,
+    time,
+    toAccount,
+  ]);
 
   const isTransferDisabled =
     !amount || !fromAccount || !toAccount || fromAccount?.id === toAccount?.id;
@@ -322,16 +444,16 @@ export default function TransferScreen({ navigation }) {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => navigation.goBack()}
-            style={styles.headerButton}
-          >
-            <MaterialIcons name="arrow-back" size={26} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Transfer</Text>
-          <View style={styles.headerPlaceholder} />
-        </View>
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => navigation.goBack()}
+          style={styles.headerButton}
+        >
+          <MaterialIcons name="arrow-back" size={26} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{headerTitle}</Text>
+        <View style={styles.headerPlaceholder} />
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -470,7 +592,7 @@ export default function TransferScreen({ navigation }) {
             disabled={isTransferDisabled}
           >
             <MaterialIcons name="compare-arrows" size={20} color="#FFFFFF" />
-            <Text style={styles.transferButtonText}>Transfer</Text>
+            <Text style={styles.transferButtonText}>{saveButtonLabel}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

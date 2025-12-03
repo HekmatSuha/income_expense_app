@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -18,7 +18,7 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { persistTransaction } from "../services/transactionRepository";
+import { persistTransaction, updateTransaction } from "../services/transactionRepository";
 import { getBankAccounts } from "../services/bankAccountRepository";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -178,7 +178,7 @@ const formatAccountBalanceLabel = (account) => {
   return currency ? `${formattedAmount} ${currency}` : formattedAmount;
 };
 
-export default function AddExpenseScreen({ navigation }) {
+export default function AddExpenseScreen({ navigation, route }) {
   const [expense, setExpense] = useState("");
   const [category, setCategory] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("Bank");
@@ -207,6 +207,9 @@ export default function AddExpenseScreen({ navigation }) {
   const [isDateTimePickerVisible, setDateTimePickerVisible] = useState(false);
   const [pickerMode, setPickerMode] = useState("date");
   const [pendingPickerValue, setPendingPickerValue] = useState(new Date());
+  const editingTransaction = route?.params?.transaction;
+  const isEditing = route?.params?.mode === "edit" || !!editingTransaction;
+  const [hasPrefilled, setHasPrefilled] = useState(false);
 
   const itemComposerTotal = useMemo(
     () => itemComposerItems.reduce((sum, item) => sum + computeItemAmount(item), 0),
@@ -221,6 +224,8 @@ export default function AddExpenseScreen({ navigation }) {
     () => new Date(parseDateTimeToISO(date, time)),
     [date, time]
   );
+  const headerTitle = isEditing ? "Edit Expense" : "Add Expense";
+  const saveButtonLabel = isEditing ? "Save changes" : "Save";
 
   const loadBankAccounts = useCallback(async () => {
     try {
@@ -228,20 +233,28 @@ export default function AddExpenseScreen({ navigation }) {
       setBankAccounts(accounts);
       setAccount((prev) => {
         if (!Array.isArray(accounts) || accounts.length === 0) {
-          return null;
+          return prev;
+        }
+        if (editingTransaction?.paymentAccount) {
+          const matchedByName = accounts.find(
+            (item) => item.name === editingTransaction.paymentAccount
+          );
+          if (matchedByName) {
+            return matchedByName;
+          }
         }
         if (prev) {
           const matched = accounts.find((item) => item.id === prev.id);
-          return matched || null;
+          return matched || prev;
         }
-        return null;
+        return accounts[0] || null;
       });
     } catch (error) {
       console.error("Failed to fetch bank accounts", error);
       setBankAccounts([]);
       setAccount(null);
     }
-  }, []);
+  }, [editingTransaction?.paymentAccount]);
 
   const loadExpenseCategories = useCallback(async () => {
     try {
@@ -258,7 +271,7 @@ export default function AddExpenseScreen({ navigation }) {
     try {
       const stored = await getPaymentMethodsStore();
       setPaymentMethods(stored);
-      if (stored.length > 0) {
+      if (stored.length > 0 && !isEditing) {
         setPaymentMethod(stored[0]);
       }
     } catch (error) {
@@ -266,7 +279,7 @@ export default function AddExpenseScreen({ navigation }) {
       setPaymentMethods(DEFAULT_PAYMENT_METHODS);
       setPaymentMethod(DEFAULT_PAYMENT_METHODS[0]);
     }
-  }, []);
+  }, [isEditing]);
 
   useFocusEffect(
     useCallback(() => {
@@ -275,6 +288,78 @@ export default function AddExpenseScreen({ navigation }) {
       loadPaymentMethods();
     }, [loadBankAccounts, loadExpenseCategories, loadPaymentMethods])
   );
+
+  useEffect(() => {
+    if (!isEditing || hasPrefilled) {
+      return;
+    }
+    const tx = editingTransaction || {};
+    const rawAmount = Math.abs(Number(tx.amount ?? tx.amountValue ?? 0));
+    if (Number.isFinite(rawAmount) && rawAmount > 0) {
+      handleExpenseChange(String(rawAmount));
+    }
+    if (tx.category) {
+      setCategory(tx.category);
+    }
+    if (tx.paymentMethod) {
+      setPaymentMethod(tx.paymentMethod);
+    }
+    if (tx.note) {
+      setNotes(tx.note);
+    }
+    if (tx.recurring) {
+      setReminder(tx.recurring);
+    }
+    const timestamp = tx.createdAt || tx.date || tx.time;
+    const parsedDate = timestamp ? new Date(timestamp) : null;
+    if (parsedDate && !Number.isNaN(parsedDate.getTime())) {
+      setDate(formatDisplayDate(parsedDate));
+      setTime(formatDisplayTime(parsedDate));
+    }
+    const normalizedAttachments = Array.isArray(tx.attachments)
+      ? tx.attachments.map((file) => ({
+          id:
+            file?.id ||
+            `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: file?.name || "Attachment",
+          uri: file?.uri,
+          type: file?.type,
+          mimeType: file?.mimeType,
+        }))
+      : [];
+    if (normalizedAttachments.length > 0) {
+      setAttachments(normalizedAttachments);
+    }
+    if (Array.isArray(tx.items)) {
+      setItems(tx.items);
+      setLastItemsSummary(buildItemsSummaryText(tx.items));
+    }
+    setHasPrefilled(true);
+  }, [editingTransaction, hasPrefilled, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing || !editingTransaction?.paymentAccount) {
+      return;
+    }
+    if (account?.name === editingTransaction.paymentAccount) {
+      return;
+    }
+    const match =
+      bankAccounts.find((item) => item.name === editingTransaction.paymentAccount) ||
+      bankAccounts.find((item) => item.id === editingTransaction.paymentAccount);
+    if (match) {
+      setAccount(match);
+      return;
+    }
+    if (!account) {
+      setAccount({
+        id: `account-${Date.now()}`,
+        name: editingTransaction.paymentAccount,
+        currency: editingTransaction.currency,
+        balance: Number(editingTransaction.balance) || 0,
+      });
+    }
+  }, [account, bankAccounts, editingTransaction, isEditing]);
 
 
   const handleExpenseChange = (text) => {
@@ -696,12 +781,17 @@ export default function AddExpenseScreen({ navigation }) {
     };
 
     try {
-      const result = await persistTransaction(payload);
+      const result =
+        isEditing && editingTransaction?.id
+          ? await updateTransaction(editingTransaction.id, payload)
+          : await persistTransaction(payload);
 
       if (result.status === "local-only") {
         Alert.alert(
           "Saved locally",
-          "Sign in to sync this expense with your account."
+          isEditing
+            ? "We'll sync these expense changes when you're back online or signed in."
+            : "Sign in to sync this expense with your account."
         );
         navigation.goBack();
         return;
@@ -736,6 +826,8 @@ export default function AddExpenseScreen({ navigation }) {
     time,
     attachments,
     items,
+    isEditing,
+    editingTransaction,
   ]);
 
   return (
@@ -751,7 +843,7 @@ export default function AddExpenseScreen({ navigation }) {
             <MaterialIcons name="arrow-back" size={26} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerTitleWrapper}>
-            <Text style={styles.headerTitle}>Add Expense</Text>
+            <Text style={styles.headerTitle}>{headerTitle}</Text>
             <MaterialIcons name="expand-more" size={22} color="#FFFFFF" />
           </View>
         </View>
@@ -965,7 +1057,7 @@ export default function AddExpenseScreen({ navigation }) {
           onPress={handleSave}
           style={[styles.bottomButton, styles.saveButton]}
         >
-          <Text style={styles.saveButtonText}>Save</Text>
+          <Text style={styles.saveButtonText}>{saveButtonLabel}</Text>
         </TouchableOpacity>
       </View>
       <Modal

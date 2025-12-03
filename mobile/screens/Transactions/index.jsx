@@ -19,17 +19,13 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import Summary from "./components/Summary";
 import FilterBar from "./components/FilterBar";
 import TransactionsList from "./components/TransactionsList";
-import TransactionEditModal from "./components/TransactionEditModal";
 import {
   DEFAULT_CURRENCY,
   formatCurrencyValue,
   formatDateParts,
   toDate,
 } from "../../utils/formatters";
-import {
-  updateTransaction as updateTransactionRecord,
-  deleteTransaction as deleteTransactionRecord,
-} from "../../services/transactionRepository";
+import { deleteTransaction as deleteTransactionRecord } from "../../services/transactionRepository";
 import AppHeader from "../../components/AppHeader";
 import { useNavigation } from "@react-navigation/native";
 
@@ -102,9 +98,6 @@ export default function TransactionsScreen() {
   });
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [isSettingStartDate, setIsSettingStartDate] = useState(true);
-  const [editingTransaction, setEditingTransaction] = useState(null);
-  const [isEditModalVisible, setEditModalVisible] = useState(false);
-  const [isSavingTransaction, setSavingTransaction] = useState(false);
   const uid = auth.currentUser?.uid;
 
   const updateFilter = useCallback((key, value) => {
@@ -315,34 +308,18 @@ export default function TransactionsScreen() {
     }
   };
 
-  const openEditTransaction = useCallback((transaction) => {
-    setEditingTransaction(transaction);
-    setEditModalVisible(true);
-  }, []);
+  const openEditTransaction = useCallback(
+    (transaction) => {
+      const type = (transaction?.type || "EXPENSE").toUpperCase();
+      const targetRoute =
+        type === "INCOME" ? "AddIncome" : type === "TRANSFER" ? "Transfer" : "AddExpense";
 
-  const handleUpdateTransaction = useCallback(
-    async (updates) => {
-      if (!editingTransaction) {
-        return;
-      }
-      setSavingTransaction(true);
-      try {
-        const result = await updateTransactionRecord(editingTransaction.id, updates);
-        setTransactions((prev) =>
-          prev.map((tx) =>
-            tx.id === result.transaction.id ? { ...tx, ...result.transaction } : tx
-          )
-        );
-        setEditModalVisible(false);
-        setEditingTransaction(null);
-      } catch (error) {
-        console.error("Failed to update transaction", error);
-        Alert.alert("Update failed", "Unable to save changes. Please try again.");
-      } finally {
-        setSavingTransaction(false);
-      }
+      navigation.navigate(targetRoute, {
+        mode: "edit",
+        transaction,
+      });
     },
-    [editingTransaction]
+    [navigation]
   );
 
   const handleDeleteTransaction = useCallback(async (transactionId) => {
@@ -495,16 +472,6 @@ export default function TransactionsScreen() {
 
       </View>
       </SafeAreaView>
-      <TransactionEditModal
-        visible={isEditModalVisible}
-        transaction={editingTransaction}
-        onClose={() => {
-          setEditModalVisible(false);
-          setEditingTransaction(null);
-        }}
-        onSubmit={handleUpdateTransaction}
-        submitting={isSavingTransaction}
-      />
     </>
   );
 }
