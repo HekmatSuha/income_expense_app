@@ -21,6 +21,9 @@ import {
 import { subscribeToRemoteTransactions } from "../services/transactions";
 import { persistTransaction } from "../services/transactionRepository";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import * as Print from "expo-print";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 
 const SafeAreaView = styled(RNSafeAreaView);
@@ -49,6 +52,8 @@ export default function BankAccountDetailScreen({ route, navigation }) {
   const [amountInput, setAmountInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const unsubscribeRef = useRef(null);
   const userId = auth.currentUser?.uid || LOCAL_USER_ID;
 
@@ -227,6 +232,12 @@ export default function BankAccountDetailScreen({ route, navigation }) {
     [account?.currency]
   );
 
+  const formatDateTime = useCallback((value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString();
+  }, []);
+
   const formatDateLabel = useCallback((value, placeholder) => {
     if (!value) return placeholder;
     const date = value instanceof Date ? value : new Date(value);
@@ -274,6 +285,135 @@ export default function BankAccountDetailScreen({ route, navigation }) {
     }
     setIosPickerVisible(false);
   }, [iosPickerValue, pickerTarget]);
+
+  const buildRows = useCallback(
+    () =>
+      filteredTransactions.map((tx) => ({
+        date: formatDateTime(tx.createdAt || tx.date),
+        type: (tx.type || "").toUpperCase(),
+        category: tx.category || (tx.type === "INCOME" ? "Deposit" : "Withdrawal"),
+        note: tx.note || "",
+        amount: Number(tx.amount) || 0,
+        currency: tx.currency || account?.currency || "USD",
+      })),
+    [account?.currency, filteredTransactions, formatDateTime]
+  );
+
+  const handleExportCsv = useCallback(async () => {
+    if (exportingCsv) return;
+    const rows = buildRows();
+    if (rows.length === 0) {
+      Alert.alert("Nothing to export", "No transactions match the current filters.");
+      return;
+    }
+    setExportingCsv(true);
+    try {
+      const header = "Date,Type,Category,Note,Amount,Currency";
+      const body = rows
+        .map((row) =>
+          [
+            `"${row.date}"`,
+            row.type,
+            `"${row.category.replace(/"/g, '""')}"`,
+            `"${row.note.replace(/"/g, '""')}"`,
+            row.amount,
+            row.currency,
+          ].join(",")
+        )
+        .join("\n");
+      const csv = `${header}\n${body}`;
+      const fileUri = `${FileSystem.cacheDirectory}transactions.csv`;
+      const encoding =
+        (FileSystem.EncodingType && FileSystem.EncodingType.UTF8) || "utf8";
+      await FileSystem.writeAsStringAsync(fileUri, csv, { encoding });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, { mimeType: "text/csv", dialogTitle: "Export CSV" });
+      } else {
+        Alert.alert("Export ready", `File saved to ${fileUri}`);
+      }
+    } catch (error) {
+      console.error("Failed to export CSV", error);
+      Alert.alert("Export failed", "Could not export CSV. Please try again.");
+    } finally {
+      setExportingCsv(false);
+    }
+  }, [buildRows, exportingCsv]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (exportingPdf) return;
+    const rows = buildRows();
+    if (rows.length === 0) {
+      Alert.alert("Nothing to export", "No transactions match the current filters.");
+      return;
+    }
+    setExportingPdf(true);
+    try {
+      const tableRows = rows
+        .map(
+          (row) => `
+            <tr>
+              <td>${row.date}</td>
+              <td>${row.type}</td>
+              <td>${row.category}</td>
+              <td>${row.note}</td>
+              <td style="text-align:right;">${row.amount.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}</td>
+              <td>${row.currency}</td>
+            </tr>`
+        )
+        .join("");
+
+      const html = `
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 16px; }
+              h1 { font-size: 18px; margin-bottom: 12px; }
+              table { width: 100%; border-collapse: collapse; font-size: 12px; }
+              th, td { border: 1px solid #ddd; padding: 6px; }
+              th { background: #f3f4f6; text-align: left; }
+            </style>
+          </head>
+          <body>
+            <h1>Bank account transactions</h1>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Category</th>
+                  <th>Note</th>
+                  <th>Amount</th>
+                  <th>Currency</th>
+                </tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          dialogTitle: "Export PDF",
+        });
+      } else {
+        Alert.alert("Export ready", `PDF saved to ${uri}`);
+      }
+    } catch (error) {
+      console.error("Failed to export PDF", error);
+      Alert.alert("Export failed", "Could not export PDF. Please try again.");
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [buildRows, exportingPdf]);
 
   return (
     <SafeAreaView className="flex-1 bg-background-light">
@@ -417,6 +557,38 @@ export default function BankAccountDetailScreen({ route, navigation }) {
               placeholderTextColor="#94A3B8"
               className="border border-gray-200 rounded-xl px-4 py-3 text-base mb-3"
             />
+            <View className="flex-row gap-8 mb-4">
+              <TouchableOpacity
+                onPress={handleExportCsv}
+                className="flex-row items-center gap-6"
+                activeOpacity={0.85}
+                disabled={exportingCsv}
+              >
+                <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
+                  <MaterialIcons name="table-chart" size={22} color="#0D99DB" />
+                </View>
+                <View>
+                  <Text className="text-sm font-semibold text-text-light">Export CSV</Text>
+                  <Text className="text-[11px] text-text-secondary-light">
+                    Use in Excel or Sheets
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleExportPdf}
+                className="flex-row items-center gap-6"
+                activeOpacity={0.85}
+                disabled={exportingPdf}
+              >
+                <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
+                  <MaterialIcons name="picture-as-pdf" size={22} color="#0D99DB" />
+                </View>
+                <View>
+                  <Text className="text-sm font-semibold text-text-light">Export PDF</Text>
+                  <Text className="text-[11px] text-text-secondary-light">Share or print</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
             <View className="rounded-2xl border border-gray-200 bg-white p-3 mb-4">
               <TouchableOpacity
                 className="flex-row justify-between items-center"
