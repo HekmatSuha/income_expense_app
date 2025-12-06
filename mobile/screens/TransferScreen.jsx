@@ -82,13 +82,37 @@ const formatAmountInput = (value) => {
   return integer;
 };
 
-const AccountListModal = ({ visible, accounts, onSelect, onClose, title }) => (
+const AccountListModal = ({
+  visible,
+  accounts,
+  onSelect,
+  onClose,
+  onCreateAccount,
+  title,
+}) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <View style={styles.modalContainer}>
       <View style={styles.modalContent}>
         <Text style={styles.modalTitle}>{title}</Text>
         {accounts.length === 0 ? (
-          <Text style={styles.modalEmptyText}>No accounts available.</Text>
+          <View style={styles.modalEmptyState}>
+            <Text style={styles.modalEmptyText}>No accounts available.</Text>
+            <TouchableOpacity
+              style={[styles.modalActionButton, styles.modalPrimaryAction]}
+              onPress={() => {
+                onClose();
+                onCreateAccount?.();
+              }}
+            >
+              <Text style={styles.modalActionText}>Create bank account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalActionButton}
+              onPress={onClose}
+            >
+              <Text style={styles.modalSecondaryText}>Close</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <FlatList
             data={accounts}
@@ -327,6 +351,12 @@ export default function TransferScreen({ navigation, route }) {
     setDateTimePickerVisible(false);
   }, []);
 
+  const handleGoToBankAccounts = useCallback(() => {
+    setFromPickerVisible(false);
+    setToPickerVisible(false);
+    navigation.navigate("BankAccounts");
+  }, [navigation]);
+
   const handleTransfer = useCallback(async () => {
     if (!amount) {
       Alert.alert("Missing amount", "Please enter an amount to continue.");
@@ -444,6 +474,8 @@ export default function TransferScreen({ navigation, route }) {
 
   const isTransferDisabled =
     !amount || !fromAccount || !toAccount || fromAccount?.id === toAccount?.id;
+  const hasAccounts = bankAccounts.length > 0;
+  const hasMultipleAccounts = bankAccounts.length > 1;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -502,7 +534,13 @@ export default function TransferScreen({ navigation, route }) {
             </View>
             <TouchableOpacity
               style={styles.accountCard}
-              onPress={() => setFromPickerVisible(true)}
+              onPress={() => {
+                if (!hasAccounts) {
+                  handleGoToBankAccounts();
+                  return;
+                }
+                setFromPickerVisible(true);
+              }}
             >
               <View>
                 <Text style={styles.accountName}>
@@ -523,13 +561,27 @@ export default function TransferScreen({ navigation, route }) {
               </View>
               <MaterialIcons name="chevron-right" size={22} color="#9CA3AF" />
             </TouchableOpacity>
+            {!hasAccounts ? (
+              <View style={styles.helperRow}>
+                <Text style={styles.helperText}>No bank accounts yet.</Text>
+                <TouchableOpacity onPress={handleGoToBankAccounts}>
+                  <Text style={styles.helperLink}>Create one</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>To Account</Text>
             <TouchableOpacity
               style={styles.accountCard}
-              onPress={() => setToPickerVisible(true)}
+              onPress={() => {
+                if (!hasAccounts) {
+                  handleGoToBankAccounts();
+                  return;
+                }
+                setToPickerVisible(true);
+              }}
             >
               <View>
                 <Text style={styles.accountName}>
@@ -550,6 +602,14 @@ export default function TransferScreen({ navigation, route }) {
               </View>
               <MaterialIcons name="chevron-right" size={22} color="#9CA3AF" />
             </TouchableOpacity>
+            {hasAccounts && !hasMultipleAccounts ? (
+              <View style={styles.helperRow}>
+                <Text style={styles.helperText}>Add another account to transfer between two.</Text>
+                <TouchableOpacity onPress={handleGoToBankAccounts}>
+                  <Text style={styles.helperLink}>Add account</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.row}>
@@ -610,6 +670,7 @@ export default function TransferScreen({ navigation, route }) {
         onSelect={setFromAccount}
         onClose={() => setFromPickerVisible(false)}
         title="Select source account"
+        onCreateAccount={handleGoToBankAccounts}
       />
 
       <AccountListModal
@@ -618,6 +679,7 @@ export default function TransferScreen({ navigation, route }) {
         onSelect={setToAccount}
         onClose={() => setToPickerVisible(false)}
         title="Select destination account"
+        onCreateAccount={handleGoToBankAccounts}
       />
 
       <Modal
@@ -809,6 +871,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.1,
   },
+  helperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  helperText: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  helperLink: {
+    fontSize: 13,
+    color: "#0D99DB",
+    fontWeight: "700",
+  },
   modalContainer: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -822,6 +899,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     maxHeight: "80%",
+  },
+  modalEmptyState: {
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
   },
   modalTitle: {
     fontSize: 18,
@@ -848,6 +930,29 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#6B7280",
     marginVertical: 24,
+  },
+  modalActionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    width: "100%",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  modalPrimaryAction: {
+    backgroundColor: "#0D99DB",
+    borderColor: "#0D99DB",
+  },
+  modalActionText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  modalSecondaryText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#6B7280",
   },
   modalCloseButton: {
     paddingVertical: 8,

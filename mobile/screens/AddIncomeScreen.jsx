@@ -741,6 +741,11 @@ export default function AddIncomeScreen({ navigation, route }) {
     setDateTimePickerVisible(false);
   }, []);
 
+  const handleGoToBankAccounts = useCallback(() => {
+    setAccountPickerVisible(false);
+    navigation.navigate("BankAccounts");
+  }, [navigation]);
+
   const handleDatePress = useCallback(() => {
     openPicker("date");
   }, [openPicker]);
@@ -911,7 +916,13 @@ export default function AddIncomeScreen({ navigation, route }) {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Account</Text>
             <TouchableOpacity
-              onPress={() => setAccountPickerVisible(true)}
+              onPress={() => {
+                if (bankAccounts.length === 0) {
+                  handleGoToBankAccounts();
+                  return;
+                }
+                setAccountPickerVisible(true);
+              }}
               activeOpacity={0.8}
               style={styles.rowCard}
             >
@@ -927,6 +938,14 @@ export default function AddIncomeScreen({ navigation, route }) {
               </Text>
               <MaterialIcons name="account-balance" size={22} color="#0288D1" />
             </TouchableOpacity>
+            {bankAccounts.length === 0 ? (
+              <View style={styles.helperRow}>
+                <Text style={styles.helperText}>No bank accounts yet.</Text>
+                <TouchableOpacity onPress={handleGoToBankAccounts}>
+                  <Text style={styles.helperLink}>Create one</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.section}>
@@ -1071,21 +1090,42 @@ export default function AddIncomeScreen({ navigation, route }) {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <FlatList
-              data={bankAccounts}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+            {bankAccounts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateTitle}>No bank accounts yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Create an account first to record this income.
+                </Text>
                 <TouchableOpacity
-                  onPress={() => {
-                    setAccount(item);
-                    setAccountPickerVisible(false);
-                  }}
-                  style={styles.modalItem}
+                  onPress={handleGoToBankAccounts}
+                  style={styles.modalPrimaryButton}
                 >
-                  <Text>{`${item.name} (${formatAccountBalanceLabel(item)})`}</Text>
+                  <Text style={styles.modalPrimaryButtonText}>Create account</Text>
                 </TouchableOpacity>
-              )}
-            />
+                <TouchableOpacity
+                  onPress={() => setAccountPickerVisible(false)}
+                  style={styles.modalSecondaryButton}
+                >
+                  <Text style={styles.modalSecondaryButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <FlatList
+                data={bankAccounts}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setAccount(item);
+                      setAccountPickerVisible(false);
+                    }}
+                    style={styles.modalItem}
+                  >
+                    <Text>{`${item.name} (${formatAccountBalanceLabel(item)})`}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -1695,6 +1735,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  emptyState: {
+    alignItems: "center",
+    gap: 8,
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+  },
   itemModalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -1758,6 +1812,21 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 13,
+  },
+  helperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  helperText: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  helperLink: {
+    fontSize: 13,
+    color: "#0288D1",
+    fontWeight: "700",
   },
   itemModalList: {
     borderWidth: 1,
