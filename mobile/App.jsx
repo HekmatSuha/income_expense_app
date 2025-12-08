@@ -13,6 +13,7 @@ import TransferScreen from "./screens/TransferScreen";
 import AddIncomeScreen from "./screens/AddIncomeScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import BankAccountDetailScreen from "./screens/BankAccountDetailScreen";
+import DrawerHubScreen from "./screens/DrawerHubScreen";
 
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 
@@ -40,6 +41,7 @@ export default function App() {
             <Stack.Screen name="Transfer" component={TransferScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="BankAccountDetail" component={BankAccountDetailScreen} />
+            <Stack.Screen name="DrawerHub" component={DrawerHubScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </LanguageProvider>

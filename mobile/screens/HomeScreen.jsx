@@ -499,64 +499,42 @@ export default function HomeScreen({ navigation }) {
     [navigation]
   );
 
-  const handleDrawerItemPress = useCallback((itemKey) => {
-    setNavbarVisible(false);
-    switch (itemKey) {
-      case "profile":
-        navigation.navigate("Profile");
-        break;
-      case "settings":
-        Alert.alert(
-          t("alerts.userSettings"),
-          t("alerts.userSettingsBody")
-        );
-        break;
-      case "security":
-        Alert.alert(
-          t("alerts.securityPrivacy"),
-          t("alerts.securityPrivacyBody")
-        );
-        break;
-      case "notifications":
-        Alert.alert(
-          t("alerts.notifications"),
-          t("alerts.notificationsBody")
-        );
-        break;
-      case "support":
-        Alert.alert(
-          t("alerts.helpSupport"),
-          t("alerts.helpSupportBody")
-        );
-        break;
-      case "theme":
-        Alert.alert(t("alerts.appearance"), t("alerts.appearanceBody"));
-        break;
-      case "feedback":
-        Alert.alert(
-          t("alerts.feedback"),
-          t("alerts.feedbackBody")
-        );
-        break;
-      case "logout":
-        try {
-          auth.signOut();
-          // Navigation to Login is usually handled by an auth state listener in App.jsx or similar,
-          // but if not, we might need navigation.replace('Login').
-          // For now, assuming auth listener handles it or just sign out.
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-          });
-        } catch (error) {
-          console.error("Sign out failed", error);
-          Alert.alert(t("alerts.error"), t("alerts.signOutFailed"));
-        }
-        break;
-      default:
-        break;
-    }
-  }, [navigation, t]);
+  const handleDrawerItemPress = useCallback(
+    (itemKey) => {
+      setNavbarVisible(false);
+      switch (itemKey) {
+        case "profile":
+          navigation.navigate("Profile");
+          break;
+        case "settings":
+        case "security":
+        case "notifications":
+        case "support":
+        case "feedback":
+          navigation.navigate("DrawerHub", { itemKey });
+          break;
+        case "theme":
+          Alert.alert(t("alerts.appearance"), t("alerts.appearanceBody"));
+          break;
+        case "logout":
+          try {
+            auth.signOut();
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Login" }],
+            });
+          } catch (error) {
+            console.error("Sign out failed", error);
+            Alert.alert(t("alerts.error"), t("alerts.signOutFailed"));
+          }
+          break;
+        default:
+          Alert.alert(t("alerts.error"), t("alerts.helpSupportBody"));
+          break;
+      }
+    },
+    [navigation, t]
+  );
 
   const monthLabel = useMemo(() => {
     try {
