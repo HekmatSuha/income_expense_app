@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView as RNScrollView,
@@ -61,6 +61,8 @@ export default function BankAccountsScreen({ navigation }) {
   const [balance, setBalance] = useState("");
   const [currency, setCurrency] = useState(currencies[0]);
   const [isCurrencyPickerVisible, setCurrencyPickerVisible] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState("");
+  const [showCurrencySearchInline, setShowCurrencySearchInline] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [formError, setFormError] = useState("");
@@ -294,10 +296,32 @@ export default function BankAccountsScreen({ navigation }) {
     }
   }, [navigation]);
 
+  useEffect(() => {
+    if (isCurrencyPickerVisible) {
+      setCurrencySearch("");
+    }
+  }, [isCurrencyPickerVisible]);
+
+  useEffect(() => {
+    if (!showCurrencySearchInline) {
+      setCurrencySearch("");
+    }
+  }, [showCurrencySearchInline]);
+
   const handleLanguageChange = useCallback((langCode) => {
     setSelectedLanguage(langCode);
     setNavbarVisible(false);
   }, []);
+
+  const filteredCurrencies = useMemo(() => {
+    const term = currencySearch.trim().toLowerCase();
+    if (!term) return currencies;
+    return currencies.filter((item) => {
+      const label = (item.label || "").toLowerCase();
+      const value = (item.value || item.code || "").toLowerCase();
+      return label.includes(term) || value.includes(term);
+    });
+  }, [currencySearch]);
 
   const modalTitle = editingAccount ? "Edit bank account" : "New bank account";
   const primaryActionLabel = submitting
@@ -355,7 +379,7 @@ export default function BankAccountsScreen({ navigation }) {
             ) : accounts.length === 0 ? (
               <View className="px-4 py-6 items-center">
                 <Text className="text-sm text-brand-slate-600 text-center">
-                  No accounts yet. Tap “Add account” above to create your first one.
+                  No accounts yet. Tap "Add account" above to create your first one.
                 </Text>
               </View>
             ) : (
@@ -393,21 +417,40 @@ export default function BankAccountsScreen({ navigation }) {
       </ScrollView>
       <Modal
         visible={isAddAccountModalVisible}
-        animationType="fade"
+        animationType="slide"
         transparent
         onRequestClose={() => {
           setEditingAccount(null);
           setAddAccountModalVisible(false);
         }}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 px-4">
-          <View className="bg-white rounded-3xl w-full p-5">
-            <Text className="text-lg font-semibold text-brand-slate-900 mb-4">
-              {modalTitle}
-            </Text>
-            <View className="space-y-4">
+        <View className="flex-1 bg-white">
+          <View className="flex-row items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+            <View>
+              <Text className="text-lg font-semibold text-brand-slate-900">{modalTitle}</Text>
+              <Text className="text-xs text-brand-slate-500 mt-1">
+                Keep balances and currencies accurate from the start.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setAddAccountModalVisible(false);
+                setEditingAccount(null);
+                setFormError("");
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialIcons name="close" size={22} color="#111827" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            className="flex-1 px-5"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 20, paddingTop: 12 }}
+          >
+            <View className="space-y-5">
               <View>
-                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Account name</Text>
+                <Text className="text-sm font-semibold text-brand-slate-700 mb-1">Account name</Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}
@@ -416,16 +459,18 @@ export default function BankAccountsScreen({ navigation }) {
                 />
               </View>
               <View>
-                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Account type</Text>
+                <Text className="text-sm font-semibold text-brand-slate-700 mb-1">Account type</Text>
                 <TextInput
                   value={type}
                   onChangeText={setType}
-                  placeholder="Savings, Checking, ..."
+                  placeholder="Savings, Checking, Card..."
                   className="bg-brand-input rounded-xl px-4 py-3 text-base"
                 />
               </View>
               <View>
-                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Starting balance</Text>
+                <Text className="text-sm font-semibold text-brand-slate-700 mb-1">
+                  Starting balance
+                </Text>
                 <TextInput
                   value={balance}
                   onChangeText={setBalance}
@@ -433,45 +478,108 @@ export default function BankAccountsScreen({ navigation }) {
                   keyboardType="decimal-pad"
                   className="bg-brand-input rounded-xl px-4 py-3 text-base"
                 />
+                <Text className="text-[11px] text-brand-slate-500 mt-1">
+                  Enter current amount for this account.
+                </Text>
               </View>
               <View>
-                <Text className="text-sm font-medium text-brand-slate-600 mb-1">Currency</Text>
+                <Text className="text-sm font-semibold text-brand-slate-700 mb-1">Currency</Text>
                 <TouchableOpacity
                   onPress={() => setCurrencyPickerVisible(true)}
-                  className="bg-brand-input rounded-xl px-4 py-3"
-                >
-                  <Text className="text-base">{currency?.label || currency?.value || "USD"}</Text>
-                </TouchableOpacity>
-              </View>
-              {formError ? (
-                <Text className="text-sm text-brand-error">{formError}</Text>
-              ) : null}
-              <View className="flex-row justify-end gap-3 pt-2">
-                <TouchableOpacity
-                  onPress={() => {
-                    setAddAccountModalVisible(false);
-                    setEditingAccount(null);
-                    setFormError("");
-                  }}
-                  className="px-4 py-3 rounded-xl border border-brand-slate-200"
-                  activeOpacity={0.8}
-                >
-                  <Text className="text-sm font-semibold text-brand-slate-600">Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSaveAccount}
+                  className="bg-brand-input rounded-xl px-4 py-3 flex-row items-center justify-between"
                   activeOpacity={0.85}
-                  className={`bg-brand-sky rounded-xl px-5 py-3 items-center justify-center shadow-sm ${
-                    submitting ? "opacity-70" : ""
-                  }`}
-                  disabled={submitting}
                 >
-                  <Text className="text-white text-sm font-semibold">
-                    {primaryActionLabel}
+                  <View>
+                    <Text className="text-base font-semibold">
+                      {currency?.value || currency?.label || "USD"}
+                    </Text>
+                    <Text className="text-[11px] text-brand-slate-500">
+                      {currency?.label || ""}
+                    </Text>
+                  </View>
+                  <MaterialIcons name="expand-more" size={22} color="#6B7280" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowCurrencySearchInline((prev) => !prev)}
+                  activeOpacity={0.8}
+                  className="flex-row items-center gap-6 mt-2"
+                >
+                  <MaterialIcons name="search" size={18} color="#0288D1" />
+                  <Text className="text-sm font-semibold text-brand-sky">
+                    {showCurrencySearchInline ? "Hide search" : "Search currencies"}
                   </Text>
                 </TouchableOpacity>
+                {showCurrencySearchInline ? (
+                  <View className="mt-3">
+                    <View className="border border-gray-200 rounded-xl px-3 py-2 flex-row items-center bg-white">
+                      <MaterialIcons name="search" size={18} color="#6B7280" />
+                      <TextInput
+                        placeholder="Search currency or code"
+                        placeholderTextColor="#9CA3AF"
+                        value={currencySearch}
+                        onChangeText={setCurrencySearch}
+                        className="flex-1 ml-2 text-base"
+                        autoFocus={true}
+                      />
+                    </View>
+                    <ScrollView style={{ maxHeight: 260, marginTop: 6 }} keyboardShouldPersistTaps="handled">
+                      {filteredCurrencies.slice(0, 12).map((item) => (
+                        <TouchableOpacity
+                          key={item.value}
+                          onPress={() => {
+                            setCurrency(item);
+                            setShowCurrencySearchInline(false);
+                          }}
+                          className="p-3 border-b border-gray-100"
+                        >
+                          <Text className="text-base font-semibold text-text-light">
+                            {item.label}
+                          </Text>
+                          <Text className="text-xs text-text-secondary-light mt-1">
+                            {item.value}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      {filteredCurrencies.length === 0 ? (
+                        <Text className="text-center text-sm text-text-secondary-light py-4">
+                          No currency found.
+                        </Text>
+                      ) : null}
+                    </ScrollView>
+                  </View>
+                ) : null}
               </View>
+              {formError ? (
+                <View className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  <Text className="text-sm text-brand-error">{formError}</Text>
+                </View>
+              ) : null}
             </View>
+          </ScrollView>
+          <View className="flex-row gap-3 px-5 pb-6 pt-3 border-t border-gray-100">
+            <TouchableOpacity
+              onPress={() => {
+                setAddAccountModalVisible(false);
+                setEditingAccount(null);
+                setFormError("");
+              }}
+              className="flex-1 px-4 py-3 rounded-xl border border-brand-slate-200 bg-white"
+              activeOpacity={0.85}
+            >
+              <Text className="text-sm font-semibold text-center text-brand-slate-700">
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSaveAccount}
+              activeOpacity={0.85}
+              className={`flex-1 bg-brand-sky rounded-xl px-5 py-3 items-center justify-center shadow-sm ${
+                submitting ? "opacity-70" : ""
+              }`}
+              disabled={submitting}
+            >
+              <Text className="text-white text-sm font-semibold">{primaryActionLabel}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -481,10 +589,33 @@ export default function BankAccountsScreen({ navigation }) {
         transparent={true}
         onRequestClose={() => setCurrencyPickerVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50">
-          <View className="bg-white rounded-2xl w-11/12 max-h-3/4">
+        <View className="flex-1 justify-end bg-black/50">
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => setCurrencyPickerVisible(false)}
+          />
+          <View className="bg-white rounded-t-2xl w-full max-h-[80%] p-4 shadow-lg">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-base font-semibold">Select currency</Text>
+              <TouchableOpacity onPress={() => setCurrencyPickerVisible(false)}>
+                <MaterialIcons name="close" size={22} color="#111827" />
+              </TouchableOpacity>
+            </View>
+            <View className="border border-gray-200 rounded-xl px-3 py-2 mb-3 flex-row items-center">
+              <MaterialIcons name="search" size={18} color="#6B7280" />
+              <TextInput
+                placeholder="Search currency or code"
+                placeholderTextColor="#9CA3AF"
+                value={currencySearch}
+                onChangeText={setCurrencySearch}
+                className="flex-1 ml-2 text-base"
+                autoFocus={true}
+              />
+            </View>
             <FlatList
-              data={currencies}
+              data={filteredCurrencies}
+              keyboardShouldPersistTaps="handled"
               keyExtractor={(item) => item.value}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -492,11 +623,17 @@ export default function BankAccountsScreen({ navigation }) {
                     setCurrency(item);
                     setCurrencyPickerVisible(false);
                   }}
-                  className="p-4 border-b border-gray-200"
+                  className="p-4 border-b border-gray-100"
                 >
-                  <Text>{item.label}</Text>
+                  <Text className="text-base font-semibold text-text-light">{item.label}</Text>
+                  <Text className="text-xs text-text-secondary-light mt-1">{item.value}</Text>
                 </TouchableOpacity>
               )}
+              ListEmptyComponent={
+                <Text className="text-center text-sm text-text-secondary-light py-6">
+                  No currency found.
+                </Text>
+              }
             />
           </View>
         </View>
