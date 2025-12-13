@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "check": "expo-doctor",
     "build": "npx expo export --platform web",
+    "postbuild": "node scripts/fix-web-fonts.js",
     "build:preview": "npx eas-cli build --profile preview --platform all",
     "build:production": "npx eas-cli build --profile production --platform all"
   },
