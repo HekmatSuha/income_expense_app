@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   ScrollView as RNScrollView,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity as RNTouchableOpacity,
   Modal,
   FlatList,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -54,6 +55,134 @@ const formatCurrencyLabel = (amount, currencyCode) => {
     : `${prefix}${formatted}`;
 };
 
+const CurrencyPickerModal = ({
+  visible,
+  onClose,
+  onSelect,
+  selectedCurrency,
+}) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (visible) {
+      setSearchQuery("");
+      setTimeout(() => inputRef.current?.focus(), 120);
+    }
+  }, [visible]);
+
+  const filteredCurrencies = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    if (!term) return currencies;
+    return currencies.filter((item) => {
+      const label = (item.label || "").toLowerCase();
+      const value = (item.value || item.code || "").toLowerCase();
+      return label.includes(term) || value.includes(term);
+    });
+  }, [searchQuery]);
+
+  const currentValue =
+    selectedCurrency?.value ||
+    selectedCurrency?.code ||
+    selectedCurrency?.label ||
+    "USD";
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <View style={currencyPickerStyles.modalOverlay}>
+        <View style={currencyPickerStyles.pickerContainer}>
+          <View style={currencyPickerStyles.pickerHeader}>
+            <Text style={currencyPickerStyles.pickerTitle}>Select currency</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={currencyPickerStyles.pickerCloseButton}
+            >
+              <MaterialIcons name="close" size={22} color="#111827" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={currencyPickerStyles.searchContainer}>
+            <MaterialIcons name="search" size={18} color="#94a3b8" />
+            <TextInput
+              ref={inputRef}
+              style={currencyPickerStyles.searchInput}
+              placeholder="Search currency or code"
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <MaterialIcons name="close" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <FlatList
+            data={filteredCurrencies}
+            keyExtractor={(item) => item.value}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            renderItem={({ item }) => {
+              const isSelected =
+                (item.value || item.code || item.label) === currentValue;
+              return (
+                <TouchableOpacity
+                  style={[
+                    currencyPickerStyles.currencyItem,
+                    isSelected && currencyPickerStyles.currencyItemActive,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    onSelect(item);
+                    onClose();
+                  }}
+                >
+                  <View>
+                    <Text
+                      style={[
+                        currencyPickerStyles.currencyCode,
+                        isSelected && currencyPickerStyles.currencyCodeActive,
+                      ]}
+                    >
+                      {item.value}
+                    </Text>
+                    <Text
+                      style={[
+                        currencyPickerStyles.currencyLabel,
+                        isSelected && currencyPickerStyles.currencyLabelActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </View>
+                  {isSelected ? (
+                    <MaterialIcons name="check" size={20} color="#0288D1" />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={currencyPickerStyles.emptyState}>
+                <Text style={currencyPickerStyles.emptyStateText}>
+                  No currency found
+                </Text>
+              </View>
+            }
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 export default function BankAccountsScreen({ navigation }) {
   const [accounts, setAccounts] = useState([]);
   const [name, setName] = useState("");
@@ -61,8 +190,6 @@ export default function BankAccountsScreen({ navigation }) {
   const [balance, setBalance] = useState("");
   const [currency, setCurrency] = useState(currencies[0]);
   const [isCurrencyPickerVisible, setCurrencyPickerVisible] = useState(false);
-  const [currencySearch, setCurrencySearch] = useState("");
-  const [showCurrencySearchInline, setShowCurrencySearchInline] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [formError, setFormError] = useState("");
@@ -296,32 +423,10 @@ export default function BankAccountsScreen({ navigation }) {
     }
   }, [navigation]);
 
-  useEffect(() => {
-    if (isCurrencyPickerVisible) {
-      setCurrencySearch("");
-    }
-  }, [isCurrencyPickerVisible]);
-
-  useEffect(() => {
-    if (!showCurrencySearchInline) {
-      setCurrencySearch("");
-    }
-  }, [showCurrencySearchInline]);
-
   const handleLanguageChange = useCallback((langCode) => {
     setSelectedLanguage(langCode);
     setNavbarVisible(false);
   }, []);
-
-  const filteredCurrencies = useMemo(() => {
-    const term = currencySearch.trim().toLowerCase();
-    if (!term) return currencies;
-    return currencies.filter((item) => {
-      const label = (item.label || "").toLowerCase();
-      const value = (item.value || item.code || "").toLowerCase();
-      return label.includes(term) || value.includes(term);
-    });
-  }, [currencySearch]);
 
   const modalTitle = editingAccount ? "Edit bank account" : "New bank account";
   const primaryActionLabel = submitting
@@ -499,55 +604,9 @@ export default function BankAccountsScreen({ navigation }) {
                   </View>
                   <MaterialIcons name="expand-more" size={22} color="#6B7280" />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setShowCurrencySearchInline((prev) => !prev)}
-                  activeOpacity={0.8}
-                  className="flex-row items-center gap-6 mt-2"
-                >
-                  <MaterialIcons name="search" size={18} color="#0288D1" />
-                  <Text className="text-sm font-semibold text-brand-sky">
-                    {showCurrencySearchInline ? "Hide search" : "Search currencies"}
-                  </Text>
-                </TouchableOpacity>
-                {showCurrencySearchInline ? (
-                  <View className="mt-3">
-                    <View className="border border-gray-200 rounded-xl px-3 py-2 flex-row items-center bg-white">
-                      <MaterialIcons name="search" size={18} color="#6B7280" />
-                      <TextInput
-                        placeholder="Search currency or code"
-                        placeholderTextColor="#9CA3AF"
-                        value={currencySearch}
-                        onChangeText={setCurrencySearch}
-                        className="flex-1 ml-2 text-base"
-                        autoFocus={true}
-                      />
-                    </View>
-                    <ScrollView style={{ maxHeight: 260, marginTop: 6 }} keyboardShouldPersistTaps="handled">
-                      {filteredCurrencies.slice(0, 12).map((item) => (
-                        <TouchableOpacity
-                          key={item.value}
-                          onPress={() => {
-                            setCurrency(item);
-                            setShowCurrencySearchInline(false);
-                          }}
-                          className="p-3 border-b border-gray-100"
-                        >
-                          <Text className="text-base font-semibold text-text-light">
-                            {item.label}
-                          </Text>
-                          <Text className="text-xs text-text-secondary-light mt-1">
-                            {item.value}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                      {filteredCurrencies.length === 0 ? (
-                        <Text className="text-center text-sm text-text-secondary-light py-4">
-                          No currency found.
-                        </Text>
-                      ) : null}
-                    </ScrollView>
-                  </View>
-                ) : null}
+                <Text className="text-[11px] text-brand-slate-500 mt-2">
+                  Tap to search and select a currency.
+                </Text>
               </View>
               {formError ? (
                 <View className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
@@ -583,61 +642,12 @@ export default function BankAccountsScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-      <Modal
+      <CurrencyPickerModal
         visible={isCurrencyPickerVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setCurrencyPickerVisible(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={1}
-            onPress={() => setCurrencyPickerVisible(false)}
-          />
-          <View className="bg-white rounded-t-2xl w-full max-h-[80%] p-4 shadow-lg">
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-base font-semibold">Select currency</Text>
-              <TouchableOpacity onPress={() => setCurrencyPickerVisible(false)}>
-                <MaterialIcons name="close" size={22} color="#111827" />
-              </TouchableOpacity>
-            </View>
-            <View className="border border-gray-200 rounded-xl px-3 py-2 mb-3 flex-row items-center">
-              <MaterialIcons name="search" size={18} color="#6B7280" />
-              <TextInput
-                placeholder="Search currency or code"
-                placeholderTextColor="#9CA3AF"
-                value={currencySearch}
-                onChangeText={setCurrencySearch}
-                className="flex-1 ml-2 text-base"
-                autoFocus={true}
-              />
-            </View>
-            <FlatList
-              data={filteredCurrencies}
-              keyboardShouldPersistTaps="handled"
-              keyExtractor={(item) => item.value}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => {
-                    setCurrency(item);
-                    setCurrencyPickerVisible(false);
-                  }}
-                  className="p-4 border-b border-gray-100"
-                >
-                  <Text className="text-base font-semibold text-text-light">{item.label}</Text>
-                  <Text className="text-xs text-text-secondary-light mt-1">{item.value}</Text>
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <Text className="text-center text-sm text-text-secondary-light py-6">
-                  No currency found.
-                </Text>
-              }
-            />
-          </View>
-        </View>
-      </Modal>
+        selectedCurrency={currency}
+        onClose={() => setCurrencyPickerVisible(false)}
+        onSelect={(selected) => setCurrency(selected)}
+      />
       <NavbarDrawer
         visible={isNavbarVisible}
         onClose={() => setNavbarVisible(false)}
@@ -649,3 +659,93 @@ export default function BankAccountsScreen({ navigation }) {
     </SafeAreaView>
   );
 }
+
+const currencyPickerStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  pickerContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "80%",
+    paddingTop: 18,
+    paddingBottom: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  pickerCloseButton: {
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: "#f1f5f9",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f1f5f9",
+    marginHorizontal: 20,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    height: 44,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: "#0f172a",
+  },
+  currencyItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  currencyItemActive: {
+    backgroundColor: "#f0f9ff",
+  },
+  currencyCode: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0f172a",
+    textTransform: "uppercase",
+  },
+  currencyCodeActive: {
+    color: "#0288D1",
+  },
+  currencyLabel: {
+    fontSize: 13,
+    color: "#475569",
+    marginTop: 2,
+  },
+  currencyLabelActive: {
+    color: "#0369a1",
+  },
+  emptyState: {
+    alignItems: "center",
+    padding: 32,
+  },
+  emptyStateText: {
+    color: "#94a3b8",
+    fontSize: 15,
+  },
+});
