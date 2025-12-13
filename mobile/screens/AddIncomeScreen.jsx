@@ -12,6 +12,7 @@ import {
   Modal,
   FlatList,
   Linking,
+  ActivityIndicator,
 } from "react-native";
 import DateTimePicker, {
   DateTimePickerAndroid,
@@ -210,6 +211,7 @@ export default function AddIncomeScreen({ navigation, route }) {
   const editingTransaction = route?.params?.transaction;
   const isEditing = route?.params?.mode === "edit" || !!editingTransaction;
   const [hasPrefilled, setHasPrefilled] = useState(false);
+  const [isSaving, setSaving] = useState(false);
 
   const itemComposerTotal = useMemo(
     () => itemComposerItems.reduce((sum, item) => sum + computeItemAmount(item), 0),
@@ -772,6 +774,8 @@ export default function AddIncomeScreen({ navigation, route }) {
       Alert.alert("Invalid amount", "Please enter a valid amount greater than zero.");
       return;
     }
+    
+    setSaving(true);
 
     const payload = {
       amount: normalizedAmount,
@@ -799,28 +803,34 @@ export default function AddIncomeScreen({ navigation, route }) {
           "Saved locally",
           isEditing
             ? "We'll sync these income changes when you're back online or signed in."
-            : "Sign in to sync this income with your account."
+            : "Sign in to sync this income with your account.",
+          [{ text: "OK", onPress: () => navigation.goBack() }]
         );
-        navigation.goBack();
         return;
       }
 
       if (result.status === "offline-fallback") {
         Alert.alert(
           "Saved offline",
-          "We'll sync this income with your account once you're back online."
+          "We'll sync this income with your account once you're back online.",
+           [{ text: "OK", onPress: () => navigation.goBack() }]
         );
-        navigation.goBack();
         return;
       }
 
-      navigation.goBack();
+      Alert.alert(
+        "Success",
+        isEditing ? "Income updated successfully." : "Income saved successfully.",
+        [{ text: "OK", onPress: () => navigation.goBack() }]
+      );
     } catch (error) {
       console.error("Failed to save income", error);
       Alert.alert(
         "Error",
         "Unable to save the income at the moment. Please try again."
       );
+    } finally {
+      setSaving(false);
     }
   }, [
     account,
@@ -1077,9 +1087,14 @@ export default function AddIncomeScreen({ navigation, route }) {
       <View style={styles.bottomBar}>
         <TouchableOpacity
           onPress={handleSave}
-          style={[styles.bottomButton, styles.saveButton]}
+          disabled={isSaving}
+          style={[styles.bottomButton, styles.saveButton, isSaving && { opacity: 0.7 }]}
         >
-          <Text style={styles.saveButtonText}>{saveButtonLabel}</Text>
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>{saveButtonLabel}</Text>
+          )}
         </TouchableOpacity>
       </View>
       <Modal
