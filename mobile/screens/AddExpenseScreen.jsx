@@ -756,6 +756,17 @@ export default function AddExpenseScreen({ navigation, route }) {
     openPicker("time");
   }, [openPicker]);
 
+  const handleSuccessNavigation = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Home" }],
+      });
+    }
+  }, [navigation]);
+
   const handleSave = useCallback(async () => {
     if (isSaving) {
       return;
@@ -778,6 +789,7 @@ export default function AddExpenseScreen({ navigation, route }) {
       Alert.alert("Invalid amount", "Please enter a valid amount greater than zero.");
       return;
     }
+    
     setSaving(true);
 
     const payload = {
@@ -795,8 +807,6 @@ export default function AddExpenseScreen({ navigation, route }) {
       items,
     };
 
-    const goHome = () => navigation.navigate("Home");
-
     try {
       const result =
         isEditing && editingTransaction?.id
@@ -809,7 +819,7 @@ export default function AddExpenseScreen({ navigation, route }) {
           isEditing
             ? "We'll sync these expense changes when you're back online or signed in."
             : "Sign in to sync this expense with your account.",
-          [{ text: "OK", onPress: goHome }]
+          [{ text: "OK", onPress: handleSuccessNavigation }]
         );
         return;
       }
@@ -818,7 +828,7 @@ export default function AddExpenseScreen({ navigation, route }) {
         Alert.alert(
           "Saved offline",
           "We'll sync this expense with your account once you're back online.",
-          [{ text: "OK", onPress: goHome }]
+          [{ text: "OK", onPress: handleSuccessNavigation }]
         );
         return;
       }
@@ -826,7 +836,7 @@ export default function AddExpenseScreen({ navigation, route }) {
       Alert.alert(
         "Success",
         isEditing ? "Expense updated successfully." : "Expense saved successfully.",
-        [{ text: "OK", onPress: goHome }]
+        [{ text: "OK", onPress: handleSuccessNavigation }]
       );
     } catch (error) {
       console.error("Failed to save expense", error);
@@ -852,6 +862,7 @@ export default function AddExpenseScreen({ navigation, route }) {
     items,
     isEditing,
     editingTransaction,
+    handleSuccessNavigation,
   ]);
 
   return (

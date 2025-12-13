@@ -756,6 +756,17 @@ export default function AddIncomeScreen({ navigation, route }) {
     openPicker("time");
   }, [openPicker]);
 
+  const handleSuccessNavigation = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Home" }],
+      });
+    }
+  }, [navigation]);
+
   const handleSave = useCallback(async () => {
     if (isSaving) {
       return;
@@ -780,8 +791,6 @@ export default function AddIncomeScreen({ navigation, route }) {
     }
     
     setSaving(true);
-
-    const goHome = () => navigation.navigate("Home");
 
     const payload = {
       amount: normalizedAmount,
@@ -810,7 +819,7 @@ export default function AddIncomeScreen({ navigation, route }) {
           isEditing
             ? "We'll sync these income changes when you're back online or signed in."
             : "Sign in to sync this income with your account.",
-          [{ text: "OK", onPress: goHome }]
+          [{ text: "OK", onPress: handleSuccessNavigation }]
         );
         return;
       }
@@ -819,7 +828,7 @@ export default function AddIncomeScreen({ navigation, route }) {
         Alert.alert(
           "Saved offline",
           "We'll sync this income with your account once you're back online.",
-           [{ text: "OK", onPress: goHome }]
+           [{ text: "OK", onPress: handleSuccessNavigation }]
         );
         return;
       }
@@ -827,7 +836,7 @@ export default function AddIncomeScreen({ navigation, route }) {
       Alert.alert(
         "Success",
         isEditing ? "Income updated successfully." : "Income saved successfully.",
-        [{ text: "OK", onPress: goHome }]
+        [{ text: "OK", onPress: handleSuccessNavigation }]
       );
     } catch (error) {
       console.error("Failed to save income", error);
@@ -853,6 +862,7 @@ export default function AddIncomeScreen({ navigation, route }) {
     items,
     isEditing,
     editingTransaction,
+    handleSuccessNavigation,
   ]);
 
   return (
