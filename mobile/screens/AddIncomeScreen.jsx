@@ -757,6 +757,10 @@ export default function AddIncomeScreen({ navigation, route }) {
   }, [openPicker]);
 
   const handleSave = useCallback(async () => {
+    if (isSaving) {
+      return;
+    }
+
     if (!income) {
       return Alert.alert("Missing amount", "Please enter an amount to continue.");
     }
@@ -776,6 +780,8 @@ export default function AddIncomeScreen({ navigation, route }) {
     }
     
     setSaving(true);
+
+    const goHome = () => navigation.navigate("Home");
 
     const payload = {
       amount: normalizedAmount,
@@ -804,7 +810,7 @@ export default function AddIncomeScreen({ navigation, route }) {
           isEditing
             ? "We'll sync these income changes when you're back online or signed in."
             : "Sign in to sync this income with your account.",
-          [{ text: "OK", onPress: () => navigation.goBack() }]
+          [{ text: "OK", onPress: goHome }]
         );
         return;
       }
@@ -813,7 +819,7 @@ export default function AddIncomeScreen({ navigation, route }) {
         Alert.alert(
           "Saved offline",
           "We'll sync this income with your account once you're back online.",
-           [{ text: "OK", onPress: () => navigation.goBack() }]
+           [{ text: "OK", onPress: goHome }]
         );
         return;
       }
@@ -821,7 +827,7 @@ export default function AddIncomeScreen({ navigation, route }) {
       Alert.alert(
         "Success",
         isEditing ? "Income updated successfully." : "Income saved successfully.",
-        [{ text: "OK", onPress: () => navigation.goBack() }]
+        [{ text: "OK", onPress: goHome }]
       );
     } catch (error) {
       console.error("Failed to save income", error);
@@ -833,6 +839,7 @@ export default function AddIncomeScreen({ navigation, route }) {
       setSaving(false);
     }
   }, [
+    isSaving,
     account,
     category,
     date,

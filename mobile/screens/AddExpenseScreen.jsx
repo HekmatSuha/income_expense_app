@@ -211,6 +211,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const editingTransaction = route?.params?.transaction;
   const isEditing = route?.params?.mode === "edit" || !!editingTransaction;
   const [hasPrefilled, setHasPrefilled] = useState(false);
+  const [isSaving, setSaving] = useState(false);
 
   const itemComposerTotal = useMemo(
     () => itemComposerItems.reduce((sum, item) => sum + computeItemAmount(item), 0),
@@ -756,6 +757,10 @@ export default function AddExpenseScreen({ navigation, route }) {
   }, [openPicker]);
 
   const handleSave = useCallback(async () => {
+    if (isSaving) {
+      return;
+    }
+
     if (!expense) {
       return Alert.alert("Missing amount", "Please enter an amount to continue.");
     }
@@ -773,6 +778,8 @@ export default function AddExpenseScreen({ navigation, route }) {
       Alert.alert("Invalid amount", "Please enter a valid amount greater than zero.");
       return;
     }
+    setSaving(true);
+
     const payload = {
       amount: -Math.abs(normalizedAmount), // Expenses deduct from the account
       type: "EXPENSE",
@@ -788,6 +795,8 @@ export default function AddExpenseScreen({ navigation, route }) {
       items,
     };
 
+    const goHome = () => navigation.navigate("Home");
+
     try {
       const result =
         isEditing && editingTransaction?.id
@@ -799,30 +808,37 @@ export default function AddExpenseScreen({ navigation, route }) {
           "Saved locally",
           isEditing
             ? "We'll sync these expense changes when you're back online or signed in."
-            : "Sign in to sync this expense with your account."
+            : "Sign in to sync this expense with your account.",
+          [{ text: "OK", onPress: goHome }]
         );
-        navigation.goBack();
         return;
       }
 
       if (result.status === "offline-fallback") {
         Alert.alert(
           "Saved offline",
-          "We'll sync this expense with your account once you're back online."
+          "We'll sync this expense with your account once you're back online.",
+          [{ text: "OK", onPress: goHome }]
         );
-        navigation.goBack();
         return;
       }
 
-      navigation.goBack();
+      Alert.alert(
+        "Success",
+        isEditing ? "Expense updated successfully." : "Expense saved successfully.",
+        [{ text: "OK", onPress: goHome }]
+      );
     } catch (error) {
       console.error("Failed to save expense", error);
       Alert.alert(
         "Error",
         "Unable to save the expense at the moment. Please try again."
       );
+    } finally {
+      setSaving(false);
     }
   }, [
+    isSaving,
     account,
     category,
     date,
@@ -1077,9 +1093,18 @@ export default function AddExpenseScreen({ navigation, route }) {
       <View style={styles.bottomBar}>
         <TouchableOpacity
           onPress={handleSave}
-          style={[styles.bottomButton, styles.saveButton]}
+          style={[
+            styles.bottomButton,
+            styles.saveButton,
+            isSaving && styles.saveButtonDisabled,
+          ]}
+          disabled={isSaving}
         >
-          <Text style={styles.saveButtonText}>{saveButtonLabel}</Text>
+          {isSaving ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>{saveButtonLabel}</Text>
+          )}
         </TouchableOpacity>
       </View>
       <Modal
@@ -1582,6 +1607,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
     textTransform: "uppercase",
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
   },
   modalContainer: {
     flex: 1,
