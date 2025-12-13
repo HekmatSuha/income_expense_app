@@ -694,7 +694,10 @@ export default function HomeScreen({ navigation }) {
                         </Text>
                       ) : null}
                     </View>
-                    <View className="items-end">
+                    <View
+                      className="items-end"
+                      style={{ minWidth: 110, flexShrink: 0 }}
+                    >
                       <Text className={`text-base font-bold ${getAmountClass(transaction.type)}`}>
                         {formatCurrency(transaction.amount, transaction.currency)}
                       </Text>
