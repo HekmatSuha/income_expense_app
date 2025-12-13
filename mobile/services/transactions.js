@@ -89,6 +89,10 @@ const mapSnapshot = (snapshot) =>
     ...snapshotDoc.data(),
   }));
 
+const removeUndefined = (obj) => {
+  return JSON.parse(JSON.stringify(obj));
+};
+
 export const ensureUserDocument = async (userId) => {
   const userDocRef = getUserDocRef(userId);
   await setDoc(
@@ -101,10 +105,10 @@ export const ensureUserDocument = async (userId) => {
 };
 
 export const addTransaction = async (userId, transaction) => {
-  const normalizedTransaction = {
+  const normalizedTransaction = removeUndefined({
     ...buildBaseTransaction(transaction),
     userId: ensureUserId(userId),
-  };
+  });
   await ensureUserDocument(userId);
   const docRef = await addDoc(
     getUserTransactionsCollection(userId),
@@ -117,10 +121,10 @@ export const addTransaction = async (userId, transaction) => {
 };
 
 export const createRemoteTransaction = async (userId, transaction) => {
-  const normalizedTransaction = {
+  const normalizedTransaction = removeUndefined({
     ...buildBaseTransaction(transaction),
     userId: ensureUserId(userId),
-  };
+  });
   await ensureUserDocument(userId);
   const docRef = await addDoc(
     getUserTransactionsCollection(userId),
@@ -163,7 +167,7 @@ export const updateRemoteTransaction = async (userId, transactionId, updates) =>
   if (!transactionId) {
     throw new Error("A transactionId is required to update a transaction.");
   }
-  const payload = buildBaseTransaction(updates);
+  const payload = removeUndefined(buildBaseTransaction(updates));
   await ensureUserDocument(userId);
   await updateDoc(getTransactionDocRef(userId, transactionId), payload);
   return {
