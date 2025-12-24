@@ -1,6 +1,9 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+} from "firebase/firestore";
 import {
   getAuth,
   initializeAuth,
@@ -33,6 +36,10 @@ if (missingKeys.length > 0) {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+// Enable persistent local cache so snapshots return instantly from disk
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({}),
+});
 let auth;
 
 try {
@@ -45,4 +52,4 @@ try {
 }
 
 export { auth };
-export const db = getFirestore(app);
+export { db };

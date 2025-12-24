@@ -252,6 +252,9 @@ export default function HomeScreen({ navigation }) {
       unsubscribeRef.current = null;
     }
 
+    // Show cached transactions immediately while waiting for network snapshot
+    loadLocalTransactions();
+
     const unsubscribe = subscribeToRemoteTransactions(userId, {
       onData: async (remoteTransactions) => {
         setTransactions(remoteTransactions);

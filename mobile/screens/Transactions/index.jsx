@@ -9,7 +9,10 @@ import {
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "../../packages/nativewind";
 import { auth } from "../../firebase";
-import { subscribeToRemoteTransactions } from "../../services/transactions";
+import {
+  subscribeToRemoteTransactions,
+  fetchRemoteTransactionsPage,
+} from "../../services/transactions";
 import {
   LOCAL_USER_ID,
   getTransactionsForUser,
@@ -85,6 +88,8 @@ const getPeriodRange = (period, startDate, endDate) => {
 export default function TransactionsScreen() {
   const navigation = useNavigation();
   const [transactions, setTransactions] = useState([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [filters, setFilters] = useState({
     query: "",
     type: "ALL",
@@ -99,6 +104,15 @@ export default function TransactionsScreen() {
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [isSettingStartDate, setIsSettingStartDate] = useState(true);
   const uid = auth.currentUser?.uid;
+  const lastDocRef = React.useRef(null);
+  const PAGE_SIZE = 50;
+
+  const mergeById = useCallback((existing = [], incoming = []) => {
+    const map = new Map();
+    existing.forEach((tx) => tx?.id && map.set(tx.id, tx));
+    incoming.forEach((tx) => tx?.id && map.set(tx.id, tx));
+    return Array.from(map.values());
+  }, []);
 
   const updateFilter = useCallback((key, value) => {
     setFilters((prev) => ({
@@ -111,6 +125,7 @@ export default function TransactionsScreen() {
     let isMounted = true;
 
     if (!uid) {
+      setHasMore(false);
       getTransactionsForUser(LOCAL_USER_ID)
         .then((items) => {
           if (isMounted) {
@@ -128,16 +143,39 @@ export default function TransactionsScreen() {
       };
     }
 
-    const unsubscribe = subscribeToRemoteTransactions(uid, {
-      onData: async (items) => {
-        if (isMounted) {
+    // Show cached transactions immediately while network subscription warms up
+    getTransactionsForUser(uid)
+      .then((items) => {
+        if (isMounted && items?.length) {
           setTransactions(items);
         }
+      })
+      .catch((error) => {
+        console.error("Failed to load cached transactions", error);
+      });
+
+    setHasMore(true);
+    lastDocRef.current = null;
+
+    const unsubscribe = subscribeToRemoteTransactions(uid, {
+      limit: PAGE_SIZE,
+      onData: async (items, snapshot) => {
+        let mergedList = [];
+        if (isMounted) {
+          setTransactions((prev) => {
+            mergedList = mergeById(prev, items);
+            return mergedList;
+          });
+        }
         try {
-          await setTransactionsForUser(uid, items);
+          const toCache = mergedList.length ? mergedList : items;
+          await setTransactionsForUser(uid, toCache);
         } catch (error) {
           console.error("Failed to cache transactions locally", error);
         }
+        const lastDoc = snapshot?.docs?.[snapshot.docs.length - 1] || null;
+        lastDocRef.current = lastDoc;
+        setHasMore(Boolean(snapshot && snapshot.size === PAGE_SIZE));
       },
       onError: async (error) => {
         console.error("Failed to load transactions from Firestore", error);
@@ -159,7 +197,40 @@ export default function TransactionsScreen() {
       isMounted = false;
       unsubscribe();
     };
-  }, [uid]);
+  }, [mergeById, uid]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !uid) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const { items, lastDoc, hasMore: moreAvailable } = await fetchRemoteTransactionsPage(
+        uid,
+        {
+          limit: PAGE_SIZE,
+          cursor: lastDocRef.current,
+        }
+      );
+      const mergedList = mergeById(transactions, items);
+      setTransactions(mergedList);
+      if (lastDoc) {
+        lastDocRef.current = lastDoc;
+      }
+      setHasMore(moreAvailable);
+      if (items?.length) {
+        try {
+          await setTransactionsForUser(uid, mergedList);
+        } catch (error) {
+          console.error("Failed to cache loaded page", error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load more transactions", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, mergeById, transactions, uid]);
 
   const normalizedTransactions = useMemo(() => {
     return transactions.map((transaction) => {
@@ -412,6 +483,9 @@ export default function TransactionsScreen() {
           groupedTransactions={groupedTransactions}
           onEditTransaction={openEditTransaction}
           onDeleteTransaction={confirmDeleteTransaction}
+          onLoadMore={handleLoadMore}
+          loadingMore={loadingMore}
+          hasMore={hasMore && Boolean(uid)}
         />
 
         <Modal

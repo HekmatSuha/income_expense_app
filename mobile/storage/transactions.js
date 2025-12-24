@@ -46,6 +46,11 @@ const toTimestamp = (value) => {
     return 0;
   }
 
+  // Support Firestore Timestamp objects and plain Dates/strings
+  if (typeof value?.toDate === "function") {
+    return value.toDate().getTime();
+  }
+
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     return 0;

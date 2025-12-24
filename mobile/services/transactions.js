@@ -5,11 +5,13 @@ import {
   getDocs,
   onSnapshot,
   orderBy,
+  limit,
   query,
   setDoc,
   doc,
   updateDoc,
   deleteDoc,
+  startAfter,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -80,8 +82,16 @@ const getUserTransactionsCollection = (userId) =>
 const getTransactionDocRef = (userId, transactionId) =>
   doc(getUserTransactionsCollection(userId), transactionId);
 
-const buildTransactionsQuery = (userId) =>
-  query(getUserTransactionsCollection(userId), orderBy("createdAt", "desc"));
+const buildTransactionsQuery = (userId, { limitCount = 200, cursor } = {}) => {
+  const constraints = [orderBy("createdAt", "desc")];
+  if (limitCount && Number.isFinite(limitCount)) {
+    constraints.push(limit(limitCount));
+  }
+  if (cursor) {
+    constraints.push(startAfter(cursor));
+  }
+  return query(getUserTransactionsCollection(userId), ...constraints);
+};
 
 const mapSnapshot = (snapshot) =>
   snapshot.docs.map((snapshotDoc) => ({
@@ -136,13 +146,16 @@ export const createRemoteTransaction = async (userId, transaction) => {
   };
 };
 
-export const subscribeToRemoteTransactions = (userId, { onData, onError } = {}) => {
+export const subscribeToRemoteTransactions = (
+  userId,
+  { onData, onError, limit: limitCount = 200 } = {}
+) => {
   try {
     const unsubscribe = onSnapshot(
-      buildTransactionsQuery(userId),
+      buildTransactionsQuery(userId, { limitCount }),
       (snapshot) => {
         const items = mapSnapshot(snapshot);
-        onData?.(items);
+        onData?.(items, snapshot);
       },
       (error) => {
         console.error("Failed to listen to remote transactions", error);
@@ -158,9 +171,20 @@ export const subscribeToRemoteTransactions = (userId, { onData, onError } = {}) 
   }
 };
 
-export const fetchRemoteTransactions = async (userId) => {
-  const snapshot = await getDocs(buildTransactionsQuery(userId));
+export const fetchRemoteTransactions = async (userId, { limit: limitCount = 200 } = {}) => {
+  const snapshot = await getDocs(buildTransactionsQuery(userId, { limitCount }));
   return mapSnapshot(snapshot);
+};
+
+export const fetchRemoteTransactionsPage = async (
+  userId,
+  { limit: limitCount = 200, cursor } = {}
+) => {
+  const snapshot = await getDocs(buildTransactionsQuery(userId, { limitCount, cursor }));
+  const items = mapSnapshot(snapshot);
+  const lastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+  const hasMore = snapshot.size === limitCount;
+  return { items, lastDoc, hasMore };
 };
 
 export const updateRemoteTransaction = async (userId, transactionId, updates) => {

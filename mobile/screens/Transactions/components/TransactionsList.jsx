@@ -3,6 +3,8 @@ import {
   SectionList as RNSectionList,
   View as RNView,
   Text as RNText,
+  TouchableOpacity as RNTouchableOpacity,
+  ActivityIndicator as RNActivityIndicator,
 } from "react-native";
 import { styled } from "../../../packages/nativewind";
 import TransactionRow from "./TransactionRow";
@@ -12,11 +14,16 @@ import { formatCurrencyValue } from "../../../utils/formatters";
 const SectionList = styled(RNSectionList);
 const View = styled(RNView);
 const Text = styled(RNText);
+const TouchableOpacity = styled(RNTouchableOpacity);
+const ActivityIndicator = styled(RNActivityIndicator);
 
 const TransactionsList = ({
   groupedTransactions,
   onEditTransaction,
   onDeleteTransaction,
+  onLoadMore,
+  loadingMore = false,
+  hasMore = false,
 }) => {
   if (groupedTransactions.length === 0) {
     return (
@@ -81,6 +88,23 @@ const TransactionsList = ({
       stickySectionHeadersEnabled={true}
       contentContainerStyle={{ paddingBottom: 100 }}
       showsVerticalScrollIndicator={false}
+      ListFooterComponent={
+        hasMore ? (
+          <View className="px-4 py-4">
+            <TouchableOpacity
+              className="bg-primary rounded-2xl py-3 items-center"
+              onPress={onLoadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text className="text-white font-semibold">Load more</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : null
+      }
     />
   );
 };
