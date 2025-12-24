@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import {
   initializeFirestore,
+  memoryLocalCache,
   persistentLocalCache,
 } from "firebase/firestore";
 import {
@@ -36,10 +37,21 @@ if (missingKeys.length > 0) {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-// Enable persistent local cache so snapshots return instantly from disk
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({}),
-});
+// Prefer persistent cache; fall back to in-memory cache if unsupported
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({}),
+  });
+} catch (error) {
+  console.warn(
+    "Firestore persistent cache unavailable, using memory cache instead.",
+    error?.message || error
+  );
+  db = initializeFirestore(app, {
+    localCache: memoryLocalCache(),
+  });
+}
 let auth;
 
 try {
